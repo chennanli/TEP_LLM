@@ -1,0 +1,99 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Virtual Environment
+tep_env/
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and temporary files
+*.log
+*.tmp
+temp/
+tmp/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Claude
+.claude/
+
+# Ignore files that might contain personal tokens
+*token*
+*secret*
+*api_key*
+*password*
+*credential*
+*.env
+config.ini
+secrets.json
+
+# Exclude specific external repositories but keep tep2py-master
+external_repos/FaultExplainer-*
+external_repos/OptiChat-main/
+external_repos/sensorscan-main/
+external_repos/temexd_mod/
+external_repos/tennessee-eastman-profBraatz-master/
+# NOT excluding external_repos/tep2py-master/ as it's essential
+
+# Data files and outputs - keep folder structure but exclude files
+data/plots/*.png
+data/plots/*.jpg
+data/plots/*.jpeg
+data/plots/*.gif
+data/simulation_results/*.csv
+data/simulation_results/*.dat
+
+# All data files regardless of location
+*.dat
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Large archive files
+*.tar.gz
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Local data that might be large
+data/large_files/
