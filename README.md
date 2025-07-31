@@ -1,4 +1,134 @@
-# Tennessee Eastman Process (TEP) Simulator
+# Tennessee E# 🎛️ Tennessee Eastman Process (TEP) Simulator
+
+A comprehensive industrial process simulator for academic research, education, and fault analysis.
+
+## 🚀 Quick Start
+
+### **Prerequisites**
+- Python 3.8+
+- macOS, Linux, or Windows
+
+### **Installation**
+```bash
+# Clone repository
+git clone https://github.com/your-username/TE.git
+cd TE
+
+# Create virtual environment
+python -m venv tep_env
+source tep_env/bin/activate  # macOS/Linux
+# tep_env\Scripts\activate   # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run simulator
+python run_simulator.py
+```
+
+## 🎛️ Available Simulators
+
+### **1. Qt Desktop Simulator**
+- Native desktop application
+- Professional interface with comprehensive plots
+- No browser required
+
+### **2. Enhanced Web Simulator**
+- Browser-based interface (http://localhost:8082)
+- Multiple product flows and compositions
+- Real-time monitoring
+
+### **3. Process Utilities**
+- Background process checker and cleanup
+- Training data generator for ML applications
+
+## 📊 What the Simulator Shows
+
+### **🏭 Multiple Product Flows**
+- Product Separator Underflow (main liquid products)
+- Stripper Underflow (purified final products)
+- Purge Rate (waste gas stream)
+
+### **💰 Product Quality (Economic Value)**
+- Component G concentration (high-value primary product)
+- Component H concentration (high-value co-product)
+- Component F concentration (lower-value byproduct)
+
+### **🚨 Safety Parameters**
+- Reactor Temperature (safety critical)
+- Reactor Pressure (safety critical)
+
+### **⚙️ Process Health**
+- Separator Level (inventory control)
+- Reactor Level (process stability)
+
+## 🎓 Educational Use
+
+Perfect for:
+- **Chemical Engineering Education** - Process control and fault analysis
+- **Industrial Systems Research** - Anomaly detection and optimization
+- **Machine Learning Projects** - Time series analysis and fault prediction
+- **Control Systems Study** - MIMO system behavior and dynamics
+
+## 📚 Documentation
+
+- **TEP_VARIABLES.md** - Complete variable reference (52 variables)
+- **SETUP_GUIDE.md** - Detailed installation and troubleshooting
+
+## 🔬 Tennessee Eastman Process
+
+The TEP is a realistic simulation of an industrial chemical plant featuring:
+- **4 Feed Streams** (A, D, E, C components)
+- **1 Main Reactor** (CSTR with chemical reactions)
+- **1 Separator** (Gas/liquid separation)
+- **1 Stripper** (Distillation for purification)
+- **20 Fault Types** for analysis and training
+
+### **Chemical Reactions:**
+```
+A + C + D → G (Primary high-value product)
+A + C + E → H (Secondary high-value product)
+A + E → F (Unwanted byproduct)
+3D → 2F (Side reaction)
+```
+
+## 🤖 Machine Learning Integration
+
+Generate training datasets:
+```bash
+python generate_training_data.py
+```
+
+Creates CSV files with:
+- All 52 process variables
+- 20 different fault scenarios
+- Normal operation baselines
+- Time series data for ML training
+
+## 📄 License
+
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License**.
+
+**✅ Allowed:** Academic research, education, personal learning, open source projects
+**❌ Not Allowed:** Commercial use, proprietary software, commercial consulting
+
+For commercial licensing, please contact the author.
+
+## 🙏 Attribution
+
+When using this work, please include:
+- Credit to the original author (Chennan Li)
+- Link to this repository
+- Note any changes made
+- Include license notice
+
+## 📧 Contact
+
+For questions, commercial licensing, or collaboration opportunities, please open an issue or contact the repository owner.
+
+---
+
+**Built for academic excellence and industrial education** 🎛️✨stman Process (TEP) Simulator
 
 🎯 **A comprehensive Python-based industrial process simulation platform with AI-powered fault detection and analysis.**
 

@@ -15,5 +15,8 @@ psutil>=5.8.0
 # Optional: LLM integration (if you want to use live_tep_with_llm.py)
 requests>=2.25.0
 
+# For secure API key management
+python-dotenv>=0.19.0
+
 # Development tools (optional)
 pytest>=6.0.0
