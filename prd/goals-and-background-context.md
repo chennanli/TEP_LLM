@@ -2,44 +2,51 @@
 
 ## Goals
 
-The primary goal of the TEP Multi-LLM FaultExplainer is to create an intelligent, chemical engineering-aware fault diagnosis system that leverages multiple Large Language Models to provide comprehensive, contextual, and safety-prioritized analysis of Tennessee Eastman Process faults.
+The primary goal is to create a **working MVP** that connects the existing TEP simulator with FaultExplainer to demonstrate real-time fault detection and LLM-powered root cause analysis.
 
-### Primary Goals:
-1. **Chemical Engineering Excellence**: Integrate validated chemical component identification (92% confidence) and EO/EG process knowledge to provide scientifically accurate fault analysis.
+### MVP Goals (Phase 1):
+1. **Dynamic TEP Integration**: Connect live TEP simulator with parameter adjustment capability (A/C ratio, fault injection) to FaultExplainer's PCA anomaly detection.
 
-2. **Multi-LLM Intelligence**: Implement Google Gemini, Local LMStudio, and comparison frameworks to provide diverse perspectives on fault diagnosis with confidence scoring.
+2. **Real-Time Fault Detection**: Use existing PCA model (20-point window) to detect anomalies when users adjust parameters or inject faults via dashboard.
 
-3. **Safety-First Prioritization**: Implement chemical hazard-aware fault classification (P1-P5) that prioritizes safety-critical components (EO toxicity, acetylene explosivity, oxygen fire risk).
+3. **LLM Root Cause Analysis**: Leverage existing Gemini/Claude API integration to provide natural language explanations of detected faults.
 
-4. **Industrial Relevance**: Build upon 30+ years of TEP research with 85% literature validation to ensure practical applicability to real petrochemical operations.
+4. **Simple Dashboard MVP**: Create unified interface where users can adjust TEP parameters, see real-time data, trigger faults, and view LLM explanations.
+
+### Future Goals (Phase 2+):
+- Multi-LLM comparison interface
+- Chemical engineering context enhancement
+- Advanced safety prioritization
+- Industrial deployment features
 
 ## Background Context
 
-The Tennessee Eastman Process represents one of the most challenging and realistic industrial process control benchmarks, but traditional fault detection methods lack chemical engineering context and safety awareness.
+We have existing working components that need to be connected into a cohesive MVP system for real-time fault detection and analysis.
 
-### Technical Context:
-- **Chemical Foundation Established**: TEP definitively identified as Ethylene Oxide/Ethylene Glycol production (92% confidence)
-- **Component Validation Complete**: 8 components validated against thermodynamic properties and literature
-- **Safety Framework Defined**: Critical components identified (EO, acetylene, oxygen) with appropriate hazard classifications
-- **Literature Validated**: 85% agreement with established research benchmarks from Chiang, Russell & Braatz and others
+### Current System Status:
+- **TEP Simulator**: Working Python wrapper (`tep2py`) with multiple UI options
+- **FaultExplainer**: Functional backend with PCA anomaly detection and LLM integration
+- **API Keys**: Gemini and Claude APIs already configured and working
+- **Bridge System**: Partial connection between TEP and FaultExplainer exists
+- **Data Flow**: TEP generates 52 variables → CSV export → FaultExplainer analysis
 
-### Industrial Context:
-- **Real Process Representation**: EO/EG production is a multi-billion dollar industry with significant safety challenges
-- **Safety Critical Operations**: EO handling requires continuous monitoring due to toxicity, explosivity, and carcinogenic properties
-- **Complex Fault Propagation**: Chemical reactions create interdependent fault scenarios requiring intelligent analysis
-- **Economic Impact**: Process optimization and fault prevention have major economic implications
+### Technical Gaps to Address:
+- **Real-Time Connection**: Current system requires manual CSV file handling
+- **Parameter Control**: Need unified interface for adjusting A/C ratio and fault injection
+- **Window Sizing**: FaultExplainer uses 20-point PCA window, bridge collects 50 points
+- **User Experience**: Multiple separate interfaces need consolidation
 
-### Research Context:
-- **Established Benchmark**: 30+ years of academic research on TEP fault detection
-- **Detection Challenges**: Literature shows 20-98% detection rates depending on fault type and method
-- **Gap in Chemical Context**: Existing methods focus on statistical patterns without chemical engineering understanding
-- **Multi-LLM Opportunity**: Large Language Models can integrate chemical knowledge with pattern recognition
+### MVP Opportunity:
+- **Proven Components**: All core pieces (TEP, PCA, LLM) are working independently
+- **Clear Data Path**: TEP (52 vars) → PCA (20 window) → LLM (explanation)
+- **User Story**: "Adjust A/C ratio → See anomaly detected → Get LLM explanation"
+- **Quick Win**: Connect existing pieces rather than build from scratch
 
-### User Context:
-- **Process Engineers**: Need chemical context for fault understanding and response decisions
-- **Control System Operators**: Require safety-prioritized alerts with clear explanations
-- **Plant Managers**: Need economic impact assessment and optimization recommendations
-- **Safety Personnel**: Require hazard-aware fault classification and emergency response guidance
+### Success Criteria:
+- User can adjust TEP parameters via web interface
+- System detects anomalies in real-time using existing PCA model
+- LLM provides explanations using existing Gemini/Claude integration
+- Single dashboard shows: controls, live data, anomaly status, explanations
 
 ## Change Log
 

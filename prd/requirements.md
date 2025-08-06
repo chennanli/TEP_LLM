@@ -2,37 +2,45 @@
 
 ## Functional
 
-### Core Chemical Engineering Integration
-- **REQ-1.1**: System shall integrate validated TEP component identification (A=H2, B=C2H2, C=C2H4, D=O2, E=EO, F=EO-related, G=MEG, H=PG) with 92% confidence
-- **REQ-1.2**: System shall incorporate EO/EG production process chemistry context in all fault analyses
-- **REQ-1.3**: System shall implement safety-critical component prioritization (EO toxicity, acetylene explosivity, oxygen fire risk)
-- **REQ-1.4**: System shall provide chemical reaction context for fault propagation analysis
+### MVP Core Requirements
 
-### Multi-LLM Integration
-- **REQ-2.1**: System shall integrate Google Gemini API for primary fault analysis
-- **REQ-2.2**: System shall integrate Local LMStudio with Mistral Small as backup LLM
-- **REQ-2.3**: System shall provide side-by-side comparison of multiple LLM responses
-- **REQ-2.4**: System shall implement confidence scoring and consensus mechanisms across LLMs
-- **REQ-2.5**: System shall support LLM selection and configuration through unified interface
+#### TEP Simulator Integration
+- **REQ-1.1**: System shall connect to existing TEP Python simulator (tep2py) for real-time data generation
+- **REQ-1.2**: System shall provide web interface for adjusting A/C feed ratio in real-time
+- **REQ-1.3**: System shall support fault injection (types 1, 4, 6, 8, 13) with adjustable intensity
+- **REQ-1.4**: System shall display live process variables (temperature, pressure, flow, level) in dashboard
 
-### Fault Classification & Prioritization
-- **REQ-3.1**: System shall implement P1-P5 fault priority classification based on chemical severity and detectability
-- **REQ-3.2**: System shall provide response time recommendations (P1: <1min, P2: <5min, P3: <30min, P4: <2hr)
-- **REQ-3.3**: System shall classify faults by process impact (Safety Critical, Production Critical, Quality/Efficiency, Process Stability)
-- **REQ-3.4**: System shall integrate literature-validated fault difficulty rankings (85% agreement with research)
+#### Real-Time Anomaly Detection
+- **REQ-2.1**: System shall use existing FaultExplainer PCA model with 20-point sliding window
+- **REQ-2.2**: System shall detect anomalies when A/C ratio changes or faults are injected
+- **REQ-2.3**: System shall trigger analysis after collecting sufficient data points (≥20)
+- **REQ-2.4**: System shall provide visual indication of anomaly detection status
 
-### TEP Simulator Integration
-- **REQ-4.1**: System shall interface with existing TEP Python simulator (tep2py)
-- **REQ-4.2**: System shall support batch analysis mode (CSV export → analysis → results)
-- **REQ-4.3**: System shall support real-time analysis mode for continuous monitoring
-- **REQ-4.4**: System shall implement PCA anomaly detection to trigger LLM analysis
+#### LLM Integration (Existing APIs)
+- **REQ-3.1**: System shall use existing Gemini API integration for fault explanations
+- **REQ-3.2**: System shall use existing Claude API as backup LLM option
+- **REQ-3.3**: System shall send anomaly data to FaultExplainer `/explain` endpoint
+- **REQ-3.4**: System shall display LLM explanations in user-friendly format
 
-### Analysis & Reporting
-- **REQ-5.1**: System shall provide root cause analysis using chemical engineering principles
-- **REQ-5.2**: System shall generate safety impact assessments for each fault
-- **REQ-5.3**: System shall provide economic impact estimates based on process disruption
-- **REQ-5.4**: System shall generate comprehensive fault reports with chemical context
-- **REQ-5.5**: System shall maintain fault analysis history and trend analysis
+#### Unified Dashboard
+- **REQ-4.1**: System shall provide single web interface combining all functionality
+- **REQ-4.2**: System shall show real-time TEP process data visualization
+- **REQ-4.3**: System shall display parameter controls (A/C ratio, fault injection)
+- **REQ-4.4**: System shall show anomaly detection status and LLM explanations
+- **REQ-4.5**: System shall maintain history of recent analyses and explanations
+
+### Future Phase Requirements (Post-MVP)
+
+#### Multi-LLM Enhancement
+- **REQ-5.1**: System shall support side-by-side LLM comparison (Gemini vs Claude vs LMStudio)
+- **REQ-5.2**: System shall implement confidence scoring across multiple LLMs
+- **REQ-5.3**: System shall provide LLM selection interface for users
+
+#### Advanced Analysis
+- **REQ-6.1**: System shall integrate chemical engineering context from validated component analysis
+- **REQ-6.2**: System shall implement fault priority classification (P1-P5)
+- **REQ-6.3**: System shall provide safety impact assessments
+- **REQ-6.4**: System shall generate comprehensive fault reports
 
 ## Non-Functional
 
