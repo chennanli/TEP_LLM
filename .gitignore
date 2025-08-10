@@ -63,6 +63,12 @@ Icon
 config.ini
 secrets.json
 
+# Specific files with API keys (GitHub blocked)
+API_UPDATE_SUMMARY.md
+MVP_IMPLEMENTATION_PLAN.md
+simple_fault_backend.py
+restart_document/README.md
+
 # Exclude specific external repositories but keep tep2py-master
 external_repos/FaultExplainer-*
 external_repos/OptiChat-main/
