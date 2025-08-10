@@ -1,0 +1,236 @@
+version: '3.8'
+
+services:
+  # Frontend - React Dashboard
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api-gateway
+    networks:
+      - tep-network
+
+  # API Gateway - FastAPI
+  api-gateway:
+    build:
+      context: ./src/backend/api-gateway
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://tep_user:tep_password@postgres:5432/tep_db
+      - REDIS_URL=redis://redis:6379/0
+      - SIMULATION_SERVICE_URL=http://simulation:8001
+      - LLM_SERVICE_URL=http://llm-analysis:8002
+      - ANOMALY_SERVICE_URL=http://anomaly-detection:8003
+    volumes:
+      - ./src/backend/api-gateway:/app
+      - ./src/backend/shared:/app/shared
+    depends_on:
+      - postgres
+      - redis
+      - simulation
+      - llm-analysis
+      - anomaly-detection
+    networks:
+      - tep-network
+
+  # TEP Simulation Service
+  simulation:
+    build:
+      context: ./src/backend/services/simulation
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://tep_user:tep_password@postgres:5432/tep_db
+      - REDIS_URL=redis://redis:6379/1
+    volumes:
+      - ./src/backend/services/simulation:/app
+      - ./src/backend/shared:/app/shared
+      - ./data:/app/data
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tep-network
+
+  # LLM Analysis Service
+  llm-analysis:
+    build:
+      context: ./src/backend/services/llm-analysis
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8002:8002"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://tep_user:tep_password@postgres:5432/tep_db
+      - REDIS_URL=redis://redis:6379/2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your-anthropic-api-key-here}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-api-key-here}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-your-gemini-api-key-here}
+      - LMSTUDIO_URL=http://host.docker.internal:1234/v1
+    volumes:
+      - ./src/backend/services/llm-analysis:/app
+      - ./src/backend/shared:/app/shared
+      - ./data/knowledge-base:/app/knowledge-base
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tep-network
+
+  # Anomaly Detection Service
+  anomaly-detection:
+    build:
+      context: ./src/backend/services/anomaly-detection
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8003:8003"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://tep_user:tep_password@postgres:5432/tep_db
+      - REDIS_URL=redis://redis:6379/3
+    volumes:
+      - ./src/backend/services/anomaly-detection:/app
+      - ./src/backend/shared:/app/shared
+      - ./data/models:/app/models
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tep-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=tep_db
+      - POSTGRES_USER=tep_user
+      - POSTGRES_PASSWORD=tep_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - tep-network
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - tep-network
+
+  # TDengine Time Series Database (Optional)
+  tdengine:
+    image: tdengine/tdengine:3.0.0.0
+    ports:
+      - "6030:6030"
+      - "6041:6041"
+    environment:
+      - TAOS_FQDN=tdengine
+    volumes:
+      - tdengine_data:/var/lib/taos
+      - tdengine_log:/var/log/taos
+    networks:
+      - tep-network
+    profiles:
+      - timeseries
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - tep-network
+    profiles:
+      - monitoring
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - tep-network
+    profiles:
+      - monitoring
+
+  # Redis Commander (Redis GUI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - tep-network
+    profiles:
+      - tools
+
+  # pgAdmin (PostgreSQL GUI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "8080:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@tep.local
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - tep-network
+    profiles:
+      - tools
+
+networks:
+  tep-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  tdengine_data:
+  tdengine_log:
+  prometheus_data:
+  grafana_data:
+  pgadmin_data:

@@ -1,0 +1,92 @@
+# Simplified Docker Compose for immediate development
+version: '3.8'
+
+services:
+  # Frontend - React Dashboard with Control Panel
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api-gateway
+    networks:
+      - tep-network
+
+  # API Gateway - Simple FastAPI proxy
+  api-gateway:
+    build:
+      context: ./src/backend/api-gateway
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - SIMULATION_SERVICE_URL=http://simulation:8001
+      - LLM_SERVICE_URL=http://llm-analysis:8002
+      - USE_DATABASE=false  # Start without database
+    volumes:
+      - ./src/backend/api-gateway:/app
+      - ./src/backend/shared:/app/shared
+    depends_on:
+      - simulation
+      - llm-analysis
+    networks:
+      - tep-network
+
+  # TEP Simulation Service (Your existing code)
+  simulation:
+    build:
+      context: ./src/backend/services/simulation
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=development
+      - USE_DATABASE=false  # In-memory storage initially
+    volumes:
+      - ./src/backend/services/simulation:/app
+      - ./src/backend/shared:/app/shared
+      - ./data:/app/data
+    networks:
+      - tep-network
+
+  # LLM Analysis Service (Your existing FaultExplainer backend)
+  llm-analysis:
+    build:
+      context: ./src/backend/services/llm-analysis
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8002:8002"
+    environment:
+      - ENVIRONMENT=development
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your-anthropic-api-key-here}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-your-gemini-api-key-here}
+      - LMSTUDIO_URL=http://host.docker.internal:1234/v1
+      - USE_DATABASE=false  # Direct data flow initially
+    volumes:
+      - ./src/backend/services/llm-analysis:/app
+      - ./src/backend/shared:/app/shared
+    networks:
+      - tep-network
+
+  # Redis for real-time data only (lightweight)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly no --save ""
+    networks:
+      - tep-network
+
+networks:
+  tep-network:
+    driver: bridge

@@ -1,0 +1,425 @@
+# TEP Industrial Intelligence Platform - Git Ignore File
+
+# ========================================
+# SECURITY & SENSITIVE DATA
+# ========================================
+
+# Environment files with API keys
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+*.env
+
+# API Keys and secrets
+**/api_keys.json
+**/secrets.json
+**/credentials.json
+config/local/
+config/secrets/
+
+# ========================================
+# PYTHON
+# ========================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+tep_env/
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ========================================
+# NODE.JS / FRONTEND
+# ========================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# ========================================
+# DOCKER
+# ========================================
+
+# Docker volumes and data
+docker-data/
+postgres_data/
+redis_data/
+tdengine_data/
+tdengine_log/
+prometheus_data/
+grafana_data/
+pgadmin_data/
+
+# Docker override files
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ========================================
+# DATA & LOGS
+# ========================================
+
+# Generated data files
+data/raw/*.csv
+data/processed/*.csv
+data/simulation_results/
+data/plots/*.png
+data/plots/*.jpg
+data/plots/*.pdf
+
+# Log files
+logs/
+*.log
+*.log.*
+log/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*_backup_*
+backup_*.sql
+
+# ========================================
+# DOCUMENTATION & EXPORTS
+# ========================================
+
+# Generated PDFs (keep source markdown)
+*.pdf
+docs/exports/*.pdf
+
+# Temporary documentation
+docs/temp/
+docs/generated/
+
+# ========================================
+# IDE & EDITOR FILES
+# ========================================
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PyCharm
+.idea/
+*.swp
+*.swo
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*~
+*.swp
+*.swo
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ========================================
+# OPERATING SYSTEM
+# ========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ========================================
+# TESTING & DEVELOPMENT
+# ========================================
+
+# Test results
+test-results/
+test-reports/
+coverage-reports/
+
+# Performance testing
+performance-results/
+load-test-results/
+
+# Development databases
+dev.db
+test.db
+local.db
+
+# ========================================
+# DEPLOYMENT & INFRASTRUCTURE
+# ========================================
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Kubernetes secrets
+k8s-secrets/
+*.kubeconfig
+
+# Helm charts values
+values-local.yaml
+values-dev.yaml
+values-staging.yaml
+values-prod.yaml
+
+# ========================================
+# SPECIFIC TO TEP PROJECT
+# ========================================
+
+# TEP simulation outputs
+tep_simulation_*.csv
+simulation_data_*.json
+
+# LLM analysis results
+llm_analyses_*.json
+fault_diagnoses_*.csv
+
+# Model files (large ML models)
+data/models/*.pkl
+data/models/*.joblib
+data/models/*.h5
+data/models/*.pt
+
+# Knowledge base files (large)
+data/knowledge-base/embeddings/
+data/knowledge-base/vectors/
+
+# Temporary simulation files
+temp_simulation_*
+*.tmp.csv
+
+# ========================================
+# KEEP THESE FILES (NEGATION PATTERNS)
+# ========================================
+
+# Keep important config templates
+!config/templates/
+!config/examples/
+
+# Keep sample data (small files)
+!data/samples/
+!data/examples/
+
+# Keep documentation assets
+!docs/images/
+!docs/diagrams/
+
+# Keep Docker templates
+!infrastructure/docker/templates/
+
+# Keep essential scripts
+!scripts/setup/
+!scripts/deployment/

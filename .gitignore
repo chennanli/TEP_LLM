@@ -104,3 +104,44 @@ data/simulation_results/*.dat
 # Local data that might be large
 data/large_files/
 .claude/
+
+# ========================================
+# INTEGRATION PROJECT ADDITIONS
+# ========================================
+
+# Docker volumes and data
+docker-data/
+postgres_data/
+redis_data/
+tdengine_data/
+tdengine_log/
+prometheus_data/
+grafana_data/
+pgadmin_data/
+
+# Node.js (for React frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+dist/
+build/
+
+# Generated documentation
+docs/exports/*.pdf
+*.pdf
+
+# Integration project environment files
+integration/.env
+integration/.env.local
+integration/.env.development
+integration/.env.production
+
+# Keep the integration project structure
+!integration/
+!integration/src/
+!integration/docs/
+!integration/config/
+!integration/scripts/
