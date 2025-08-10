@@ -1,0 +1,26 @@
+{
+  "data_point": {
+    "A Feed": 0.249,
+    "D Feed": 3669.26,
+    "E Feed": 4501.01,
+    "A and C Feed": 9.45,
+    "Recycle Flow": 27.32,
+    "Reactor Feed Rate": 42.46,
+    "Reactor Pressure": 2706.36,
+    "Reactor Level": 74.64,
+    "Reactor Temperature": 120.40,
+    "Purge Rate": 0.336,
+    "Product Sep Temp": 80.22,
+    "Product Sep Level": 48.71,
+    "Product Sep Pressure": 2635.78,
+    "Product Sep Underflow": 25.54,
+    "Stripper Level": 50.43,
+    "Stripper Pressure": 3102.48,
+    "Stripper Underflow": 22.33,
+    "Stripper Temp": 65.76,
+    "Stripper Steam Flow": 228.78,
+    "Compressor Work": 341.50,
+    "Reactor Coolant Temp": 94.61,
+    "Separator Coolant Temp": 77.28
+  }
+}

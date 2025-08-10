@@ -1,0 +1,346 @@
+// TEP Control Panel JavaScript - Safari Compatible
+console.log('External JavaScript file loading...');
+
+// Safari compatibility polyfills
+if (!Array.prototype.forEach) {
+    Array.prototype.forEach = function(callback, thisArg) {
+        for (var i = 0; i < this.length; i++) {
+            callback.call(thisArg, this[i], i, this);
+        }
+    };
+}
+
+// Global error handler
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error('JavaScript Error:', msg, 'at line', lineNo);
+    alert('JavaScript Error: ' + msg);
+    return false;
+};
+
+// Test functions
+function simpleTest() {
+    alert('Simple test button clicked!');
+    console.log('Simple test button clicked!');
+    var statusEl = document.getElementById('status');
+    if (statusEl) {
+        statusEl.innerHTML = '<div style="background: blue; color: white; padding: 10px;">Button clicked at ' + new Date().toLocaleTimeString() + '</div>';
+    }
+}
+
+function testFunction() {
+    console.log('testFunction() executed');
+    alert('Test function works!');
+    showMessage('Test function works!', 'success');
+}
+
+function showMessage(message, type) {
+    console.log('showMessage:', message, type);
+    var statusDiv = document.getElementById('status');
+    if (!statusDiv) {
+        console.error('Status div not found!');
+        alert(message);
+        return;
+    }
+    statusDiv.textContent = message;
+    statusDiv.className = type === 'success' ? 'btn-success' :
+                         type === 'error' ? 'btn-danger' : 'btn-primary';
+    statusDiv.style.display = 'block';
+    statusDiv.style.padding = '15px';
+    statusDiv.style.borderRadius = '8px';
+    statusDiv.style.marginBottom = '20px';
+    statusDiv.style.fontWeight = 'bold';
+
+    setTimeout(function() {
+        statusDiv.style.display = 'none';
+    }, 5000);
+}
+
+function startBackend() {
+    console.log('startBackend() called from external JS');
+    var btns = document.querySelectorAll("button[onclick*='startBackend']");
+    console.log('Found buttons:', btns.length);
+    
+    for (var i = 0; i < btns.length; i++) {
+        if (btns[i]) btns[i].disabled = true;
+    }
+
+    fetch('/api/faultexplainer/backend/start', {method: 'POST'})
+        .then(function(response) {
+            console.log('Backend response:', response.status);
+            return response.json();
+        })
+        .then(function(data) {
+            console.log('Backend data:', data);
+            showMessage(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                for (var i = 0; i < btns.length; i++) {
+                    btns[i].classList.add('btn-success');
+                    (function(btn) {
+                        setTimeout(function() { btn.classList.remove('btn-success'); }, 800);
+                    })(btns[i]);
+                }
+            }
+        })
+        .catch(function(e) {
+            console.error('Backend error:', e);
+            showMessage('Backend start failed: ' + e, 'error');
+        })
+        .finally(function() {
+            for (var i = 0; i < btns.length; i++) {
+                if (btns[i]) btns[i].disabled = false;
+            }
+        });
+}
+
+function startTEP() {
+    console.log('startTEP() called from external JS');
+    var btns = document.querySelectorAll("button[onclick*='startTEP']");
+    
+    for (var i = 0; i < btns.length; i++) {
+        if (btns[i]) btns[i].disabled = true;
+    }
+    
+    fetch('/api/tep/start', {method: 'POST'})
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            showMessage(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                for (var i = 0; i < btns.length; i++) {
+                    btns[i].classList.add('btn-success');
+                    (function(btn) {
+                        setTimeout(function() { btn.classList.remove('btn-success'); }, 800);
+                    })(btns[i]);
+                }
+            }
+        })
+        .catch(function(e) { showMessage('Start TEP failed: ' + e, 'error'); })
+        .finally(function() {
+            for (var i = 0; i < btns.length; i++) {
+                if (btns[i]) btns[i].disabled = false;
+            }
+        });
+}
+
+function startFrontend() {
+    console.log('startFrontend() called from external JS');
+    var btns = document.querySelectorAll("button[onclick*='startFrontend']");
+
+    for (var i = 0; i < btns.length; i++) {
+        if (btns[i]) btns[i].disabled = true;
+    }
+
+    fetch('/api/faultexplainer/frontend/start', {method: 'POST'})
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            showMessage(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                for (var i = 0; i < btns.length; i++) {
+                    btns[i].classList.add('btn-success');
+                    (function(btn) {
+                        setTimeout(function() { btn.classList.remove('btn-success'); }, 800);
+                    })(btns[i]);
+                }
+            }
+        })
+        .catch(function(e) { showMessage('Frontend start failed: ' + e, 'error'); })
+        .finally(function() {
+            for (var i = 0; i < btns.length; i++) {
+                if (btns[i]) btns[i].disabled = false;
+            }
+        });
+}
+
+function startBridge() {
+    console.log('startBridge() called from external JS');
+    fetch('/api/bridge/start', {method: 'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function(d) { showMessage(d.message, d.success ? 'success' : 'error'); })
+        .catch(function(e) { showMessage('Bridge start failed: ' + e, 'error'); });
+}
+
+function stopBridge() {
+    console.log('stopBridge() called from external JS');
+    fetch('/api/bridge/stop', {method: 'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function(d) { showMessage(d.message, d.success ? 'success' : 'error'); })
+        .catch(function(e) { showMessage('Bridge stop failed: ' + e, 'error'); });
+}
+
+function setSpeed(mode) {
+    console.log('setSpeed() called with mode:', mode);
+    fetch('/api/speed', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mode: mode})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        showMessage('Speed set to ' + data.mode + ' (' + data.step_interval_seconds + 's/step)', 'success');
+        var speedModeEl = document.getElementById('speed-mode');
+        if (speedModeEl) {
+            speedModeEl.textContent = data.mode === 'demo' ? 'Demo (' + data.step_interval_seconds + 's)' : 'Real (180s)';
+        }
+        var di = document.getElementById('demo-interval');
+        if (di) di.textContent = data.step_interval_seconds;
+        var ds = document.getElementById('demo-interval-slider');
+        if (ds && data.mode === 'demo') ds.value = data.step_interval_seconds;
+
+        var demoBtn = document.getElementById('btn-speed-demo');
+        var realBtn = document.getElementById('btn-speed-real');
+        if (demoBtn) demoBtn.classList.toggle('btn-active', data.mode === 'demo');
+        if (realBtn) realBtn.classList.toggle('btn-active', data.mode !== 'demo');
+    })
+    .catch(function(e) { showMessage('Speed update failed: ' + e, 'error'); });
+}
+
+function updateStatus() {
+    console.log('updateStatus() called from external JS');
+    fetch('/api/status')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            console.log('Status data received:', data);
+            // Update TEP status
+            var tepStatus = document.getElementById('tep-status');
+            var tepStep = document.getElementById('tep-step');
+            if (tepStatus) tepStatus.textContent = data.tep_running ? 'Running' : 'Stopped';
+            if (tepStep) tepStep.textContent = data.current_step;
+
+            // Update backend/frontend status
+            var backendStatus = document.getElementById('backend-status');
+            var frontendStatus = document.getElementById('frontend-status');
+            if (backendStatus) backendStatus.textContent = data.backend_running ? 'Running' : 'Stopped';
+            if (frontendStatus) frontendStatus.textContent = data.frontend_running ? 'Running' : 'Stopped';
+        })
+        .catch(function(error) { console.error('Status update failed:', error); });
+}
+
+// Initialize when DOM is ready
+function initializeApp() {
+    console.log('Initializing app from external JS...');
+    try {
+        // Test basic functionality
+        var statusEl = document.getElementById('status');
+        if (statusEl) {
+            statusEl.innerHTML = '<div style="background: green; color: white; padding: 10px;">✅ External JavaScript is WORKING!</div>';
+        }
+        
+        // Auto-refresh status every 5 seconds
+        setInterval(updateStatus, 5000);
+        updateStatus();
+        
+        console.log('✅ External JavaScript initialized successfully');
+    } catch(e) {
+        console.error('❌ External JavaScript initialization failed:', e);
+        alert('Initialization Error: ' + e.message);
+    }
+}
+
+// Multiple initialization methods for Safari compatibility
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
+
+window.onload = function() {
+    console.log('Window loaded - external JS final initialization');
+    initializeApp();
+};
+
+// Additional missing functions
+function stopTEP() {
+    console.log('stopTEP() called from external JS');
+    var btns = document.querySelectorAll("button[onclick*='stopTEP']");
+
+    for (var i = 0; i < btns.length; i++) {
+        if (btns[i]) btns[i].disabled = true;
+    }
+
+    fetch('/api/tep/stop', {method: 'POST'})
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            showMessage(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                for (var i = 0; i < btns.length; i++) {
+                    btns[i].classList.add('btn-success');
+                    (function(btn) {
+                        setTimeout(function() { btn.classList.remove('btn-success'); }, 800);
+                    })(btns[i]);
+                }
+            }
+        })
+        .catch(function(e) { showMessage('Stop TEP failed: ' + e, 'error'); })
+        .finally(function() {
+            for (var i = 0; i < btns.length; i++) {
+                if (btns[i]) btns[i].disabled = false;
+            }
+        });
+}
+
+function stopAll() {
+    console.log('stopAll() called from external JS');
+    fetch('/api/stop/all', {method: 'POST'})
+        .then(function(response) { return response.json(); })
+        .then(function(data) { showMessage(data.message, 'success'); });
+}
+
+function setLLMInterval(sec) {
+    console.log('setLLMInterval() called with:', sec);
+    var seconds = parseInt(sec);
+    fetch('/api/backend/config/runtime', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ llm_min_interval_seconds: seconds })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(_) {
+        var lab = document.getElementById('llm-interval-label');
+        if (lab) lab.textContent = seconds;
+        showMessage('LLM refresh interval set to ' + seconds + 's', 'success');
+    })
+    .catch(function(e) { showMessage('Failed to set LLM interval: ' + e, 'error'); });
+}
+
+function checkBaselineStatus() {
+    console.log('checkBaselineStatus() called from external JS');
+    fetch('http://localhost:8000/metrics')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            showMessage('Backend ok. live_buffer=' + data.live_buffer + ', window=' + data.pca_window + ', baseline_features=' + data.baseline_features, 'success');
+        })
+        .catch(function(e) {
+            showMessage('Metrics check failed: ' + e, 'error');
+        });
+}
+
+function restartTEP() {
+    console.log('restartTEP() called from external JS');
+    fetch('/api/tep/restart', {method: 'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function(d) { showMessage(d.message, d.success ? 'success' : 'error'); })
+        .catch(function(e) { showMessage('Restart failed: ' + e, 'error'); });
+}
+
+function loadLog(name) {
+    console.log('loadLog() called with:', name);
+    fetch('/api/logs/' + name)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var el = document.getElementById('log-view');
+            if (el) {
+                el.textContent = (d.lines || []).join('');
+                el.scrollTop = el.scrollHeight;
+            }
+        })
+        .catch(function(e) {
+            showMessage('Failed to load log: ' + e, 'error');
+        });
+}
+
+function clearLog() {
+    console.log('clearLog() called from external JS');
+    var el = document.getElementById('log-view');
+    if (el) el.textContent = '';
+}
+
+console.log('✅ External JavaScript file loaded completely');

@@ -1,0 +1,17 @@
+{
+  "demo_sensitive": {
+    "pca_window_size": 6,
+    "fault_trigger_consecutive_step": 1,
+    "decimation_N": 1,
+    "llm_min_interval_seconds": 20,
+    "anomaly_threshold": 0.05
+  },
+  "realistic": {
+    "pca_window_size": 20,
+    "fault_trigger_consecutive_step": 6,
+    "decimation_N": 4,
+    "llm_min_interval_seconds": 300,
+    "anomaly_threshold": 0.01
+  }
+}
+

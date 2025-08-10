@@ -1,428 +1,208 @@
 #!/usr/bin/env python3
 """
-TEP-FaultExplainer Bridge
-========================
-
-Connects your live TEP simulator to FaultExplainer:
-1. Monitors your live TEP simulator for fault data
-2. Automatically generates CSV files when faults occur
-3. Sends data to FaultExplainer for LLM analysis
-4. Shows explanations in a simple interface
-
-Author: Augment Agent
-Date: 2025-07-23
+TEP-FaultExplainer Data Bridge
+Connects live TEP simulation data to FaultExplainer analysis
 """
 
-import sys
-import os
 import pandas as pd
 import numpy as np
 import time
-import threading
 import requests
 import json
+import os
+from collections import deque
 from datetime import datetime
-from flask import Flask, render_template_string, jsonify, request
-
-# Add TEP simulator to path
-sys.path.append('external_repos/tep2py-master')
-
-try:
-    from tep2py import tep2py
-    print("✅ TEP simulator loaded successfully!")
-except ImportError as e:
-    print(f"❌ Error loading TEP simulator: {e}")
-    sys.exit(1)
 
 class TEPFaultExplainerBridge:
-    """Bridge between live TEP simulator and FaultExplainer."""
+    """Bridge between TEP simulation and FaultExplainer"""
     
     def __init__(self):
-        self.tep_simulator = None
-        self.monitoring = False
-        self.fault_data_buffer = []
-        self.normal_data_baseline = None
-        self.current_fault = None
-        self.llm_explanations = []
+        self.live_data_file = "data/live_tep_data.csv"
+        self.faultexplainer_url = "http://localhost:8000"
+        self.window_size = 20
+        self.data_buffer = deque(maxlen=self.window_size)
+        self.last_processed_step = -1
         
-        # TEP variable mapping (simplified for key variables)
+        # TEP to FaultExplainer variable mapping
         self.variable_mapping = {
-            'XMEAS(1)': 'A Feed',
-            'XMEAS(2)': 'D Feed', 
-            'XMEAS(3)': 'E Feed',
-            'XMEAS(4)': 'A and C Feed',
-            'XMEAS(5)': 'Recycle Flow',
-            'XMEAS(6)': 'Reactor Feed Rate',
-            'XMEAS(7)': 'Reactor Pressure',
-            'XMEAS(8)': 'Reactor Level',
-            'XMEAS(9)': 'Reactor Temperature',
-            'XMEAS(10)': 'Purge Rate',
-            'XMEAS(11)': 'Product Sep Temp',
-            'XMEAS(12)': 'Product Sep Level',
-            'XMEAS(13)': 'Product Sep Pressure',
-            'XMEAS(14)': 'Product Sep Underflow',
-            'XMEAS(15)': 'Stripper Level',
-            'XMEAS(16)': 'Stripper Pressure',
-            'XMEAS(17)': 'Stripper Underflow',
-            'XMEAS(18)': 'Stripper Temp',
-            'XMEAS(19)': 'Stripper Steam Flow',
-            'XMEAS(20)': 'Compressor Work',
-            'XMEAS(21)': 'Reactor Coolant Temp',
-            'XMEAS(22)': 'Separator Coolant Temp'
+            'XMEAS_1': 'A Feed',
+            'XMEAS_2': 'D Feed', 
+            'XMEAS_3': 'E Feed',
+            'XMEAS_4': 'A and C Feed',
+            'XMEAS_5': 'Recycle Flow',
+            'XMEAS_6': 'Reactor Feed Rate',
+            'XMEAS_7': 'Reactor Pressure',
+            'XMEAS_8': 'Reactor Level',
+            'XMEAS_9': 'Reactor Temperature',
+            'XMEAS_10': 'Purge Rate',
+            'XMEAS_11': 'Product Sep Temp',
+            'XMEAS_12': 'Product Sep Level',
+            'XMEAS_13': 'Product Sep Pressure',
+            'XMEAS_14': 'Product Sep Underflow',
+            'XMEAS_15': 'Stripper Level',
+            'XMEAS_16': 'Stripper Pressure',
+            'XMEAS_17': 'Stripper Underflow',
+            'XMEAS_18': 'Stripper Temp',
+            'XMEAS_19': 'Stripper Steam Flow',
+            'XMEAS_20': 'Compressor Work',
+            'XMEAS_21': 'Reactor Coolant Temp',
+            'XMEAS_22': 'Separator Coolant Temp'
         }
+        
+        print("🌉 TEP-FaultExplainer Bridge initialized")
+        print(f"📁 Monitoring: {self.live_data_file}")
+        print(f"🔗 FaultExplainer: {self.faultexplainer_url}")
     
-    def start_normal_operation(self, duration_minutes=5):
-        """Start normal operation to establish baseline."""
-        print("📊 Establishing normal operation baseline...")
-        
-        # Initialize TEP with no faults
-        idata = np.zeros((2, 20))
-        self.tep_simulator = tep2py(idata)
-        
-        normal_data = []
-        steps = int(duration_minutes * 60 / 3)  # 3-second intervals
-        
-        for i in range(steps):
-            self.tep_simulator.simulate()
-            data = self.tep_simulator.process_data
-            
-            if len(data) > 0:
-                latest = data.iloc[-1].to_dict()
-                normal_data.append(latest)
-            
-            time.sleep(0.1)  # Fast simulation for baseline
-        
-        # Calculate baseline statistics
-        if normal_data:
-            self.normal_data_baseline = pd.DataFrame(normal_data)
-            print(f"✅ Normal baseline established with {len(normal_data)} data points")
-            
-            # Save baseline for FaultExplainer
-            baseline_file = 'normal_baseline.csv'
-            self.save_data_for_faultexplainer(self.normal_data_baseline, baseline_file)
-            return True
-        
-        return False
-    
-    def start_fault_simulation(self, fault_type, intensity=1.0):
-        """Start simulation with specified fault."""
-        print(f"🚨 Starting fault simulation: Type {fault_type}, Intensity {intensity}")
-        
-        # Initialize TEP with fault
-        idata = np.zeros((2, 20))
-        if fault_type > 0:
-            idata[1, fault_type-1] = intensity
-        
-        self.tep_simulator = tep2py(idata)
-        self.current_fault = {'type': fault_type, 'intensity': intensity}
-        self.fault_data_buffer = []
-        
-        return True
-    
-    def monitor_for_faults(self, duration_minutes=10):
-        """Monitor simulation and collect fault data."""
-        print(f"👁️ Monitoring for {duration_minutes} minutes...")
-        
-        steps = int(duration_minutes * 60 / 3)  # 3-second intervals
-        
-        for i in range(steps):
-            if not self.monitoring:
-                break
-                
-            self.tep_simulator.simulate()
-            data = self.tep_simulator.process_data
-            
-            if len(data) > 0:
-                latest = data.iloc[-1].to_dict()
-                self.fault_data_buffer.append(latest)
-                
-                # Check if we have enough data for analysis
-                if len(self.fault_data_buffer) >= 50:  # Analyze every 50 points
-                    self.analyze_fault_data()
-                    self.fault_data_buffer = self.fault_data_buffer[-20:]  # Keep last 20 points
-            
-            time.sleep(0.1)  # Fast simulation
-    
-    def analyze_fault_data(self):
-        """Analyze current fault data and send to FaultExplainer."""
-        if not self.fault_data_buffer or self.normal_data_baseline is None:
-            return
-        
-        print("🔍 Analyzing fault data...")
-        
-        # Convert to DataFrame
-        fault_df = pd.DataFrame(self.fault_data_buffer)
-        
-        # Save fault data for FaultExplainer
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        fault_file = f'live_fault_{self.current_fault["type"]}_{timestamp}.csv'
-        
-        self.save_data_for_faultexplainer(fault_df, fault_file)
-        
-        # Send to FaultExplainer for LLM analysis
-        self.request_llm_analysis(fault_df, fault_file)
-    
-    def save_data_for_faultexplainer(self, data_df, filename):
-        """Save data in FaultExplainer format."""
-        # Map TEP variables to FaultExplainer format
-        mapped_data = {}
-        
-        for tep_var, fe_name in self.variable_mapping.items():
-            if tep_var in data_df.columns:
-                mapped_data[fe_name] = data_df[tep_var].tolist()
-        
-        # Add time column
-        mapped_data['time'] = [i * 0.05 for i in range(len(data_df))]
-        
-        # Convert to DataFrame and save
-        fe_df = pd.DataFrame(mapped_data)
-        
-        # Save to FaultExplainer data directory
-        fe_data_dir = 'external_repos/FaultExplainer-MultiLLM/backend/data'
-        if not os.path.exists(fe_data_dir):
-            os.makedirs(fe_data_dir)
-        
-        filepath = os.path.join(fe_data_dir, filename)
-        fe_df.to_csv(filepath, index=False)
-        
-        print(f"💾 Saved data to {filepath}")
-        return filepath
-    
-    def request_llm_analysis(self, fault_df, fault_file):
-        """Request LLM analysis from FaultExplainer."""
+    def check_faultexplainer_status(self):
+        """Check if FaultExplainer backend is running"""
         try:
-            # Prepare data for FaultExplainer API
-            latest_data = fault_df.iloc[-1]
+            response = requests.get(f"{self.faultexplainer_url}/", timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+    
+    def read_new_data(self):
+        """Read new data points from live TEP CSV"""
+        try:
+            if not os.path.exists(self.live_data_file):
+                return []
             
-            # Map to FaultExplainer variable names
-            fe_data = {}
-            for tep_var, fe_name in self.variable_mapping.items():
-                if tep_var in latest_data:
-                    fe_data[fe_name] = [float(latest_data[tep_var])]
+            df = pd.read_csv(self.live_data_file)
+            if df.empty:
+                return []
             
-            # Prepare request
-            request_data = {
-                "data": fe_data,
-                "id": f"live_analysis_{datetime.now().strftime('%H%M%S')}",
-                "file": fault_file
-            }
+            # Get new data points since last processing
+            new_data = df[df['step'] > self.last_processed_step]
             
-            print("🤖 Requesting LLM analysis...")
+            if not new_data.empty:
+                self.last_processed_step = new_data['step'].max()
+                return new_data.to_dict('records')
             
-            # Send to FaultExplainer
-            response = requests.post(
-                'http://localhost:8000/explain',
-                json=request_data,
-                timeout=60
-            )
+            return []
             
-            if response.status_code == 200:
-                # Handle streaming response
-                explanation = ""
-                for line in response.iter_lines():
-                    if line:
-                        line_str = line.decode('utf-8')
-                        if line_str.startswith('data: '):
-                            explanation += line_str[6:] + "\n"
-                
-                if explanation.strip():
-                    self.llm_explanations.append({
-                        'timestamp': datetime.now().strftime('%H:%M:%S'),
-                        'fault_type': self.current_fault['type'],
-                        'explanation': explanation.strip(),
-                        'file': fault_file
-                    })
-                    
-                    print("✅ LLM analysis received!")
-                    print(f"📝 Explanation: {explanation[:100]}...")
-                else:
-                    print("⚠️ Empty explanation received")
-            else:
-                print(f"❌ FaultExplainer returned status {response.status_code}")
-                
         except Exception as e:
-            print(f"❌ Error requesting LLM analysis: {e}")
-
-# Flask web interface
-app = Flask(__name__)
-bridge = TEPFaultExplainerBridge()
-
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>🎛️ TEP-FaultExplainer Bridge</title>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
-        .section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; background: #007bff; color: white; margin: 5px; }
-        .btn:hover { opacity: 0.8; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .status { padding: 15px; background: #e9ecef; border-radius: 5px; margin: 10px 0; }
-        .explanation { background: white; margin: 10px 0; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff; }
-        .timestamp { font-weight: bold; color: #007bff; }
-        .content { white-space: pre-wrap; font-family: monospace; font-size: 12px; }
-        select, input { padding: 8px; margin: 5px; border-radius: 3px; border: 1px solid #ccc; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎛️ TEP-FaultExplainer Bridge</h1>
-        <p>Connect your live TEP simulator to FaultExplainer for LLM analysis</p>
-        
-        <div class="section">
-            <h3>🎯 Step 1: Establish Normal Baseline</h3>
-            <button class="btn" onclick="establishBaseline()">📊 Run Normal Operation (5 min)</button>
-            <div id="baselineStatus" class="status">Ready to establish baseline</div>
-        </div>
-        
-        <div class="section">
-            <h3>🚨 Step 2: Simulate Fault</h3>
-            <label>Fault Type:</label>
-            <select id="faultType">
-                <option value="1">Fault 1 - A/C Feed Ratio</option>
-                <option value="4">Fault 4 - Cooling Water</option>
-                <option value="6">Fault 6 - Feed Loss</option>
-                <option value="8">Fault 8 - Feed Composition</option>
-                <option value="13">Fault 13 - Reaction Kinetics</option>
-            </select>
-            
-            <label>Intensity:</label>
-            <input type="number" id="intensity" value="1.0" min="0.1" max="2.0" step="0.1">
-            
-            <button class="btn" onclick="startFaultSim()">🚨 Start Fault Simulation</button>
-            <button class="btn" onclick="stopMonitoring()">⏹️ Stop</button>
-            <div id="faultStatus" class="status">Ready to simulate fault</div>
-        </div>
-        
-        <div class="section">
-            <h3>🤖 LLM Explanations</h3>
-            <div id="explanations">No explanations yet. Run fault simulation first.</div>
-        </div>
-    </div>
+            print(f"❌ Error reading data: {e}")
+            return []
     
-    <script>
-        function establishBaseline() {
-            document.getElementById('baselineStatus').textContent = '⏳ Establishing normal baseline...';
-            
-            fetch('/establish_baseline', {method: 'POST'})
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('baselineStatus').textContent = data.message;
-            });
-        }
-        
-        function startFaultSim() {
-            const faultType = document.getElementById('faultType').value;
-            const intensity = document.getElementById('intensity').value;
-            
-            document.getElementById('faultStatus').textContent = `⏳ Starting fault ${faultType} simulation...`;
-            
-            fetch('/start_fault', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({fault_type: parseInt(faultType), intensity: parseFloat(intensity)})
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('faultStatus').textContent = data.message;
-                if (data.success) {
-                    startPolling();
-                }
-            });
-        }
-        
-        function stopMonitoring() {
-            fetch('/stop', {method: 'POST'})
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('faultStatus').textContent = data.message;
-                stopPolling();
-            });
-        }
-        
-        let pollingInterval;
-        
-        function startPolling() {
-            pollingInterval = setInterval(updateExplanations, 5000);
-        }
-        
-        function stopPolling() {
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-            }
-        }
-        
-        function updateExplanations() {
-            fetch('/get_explanations')
-            .then(response => response.json())
-            .then(data => {
-                if (data.explanations && data.explanations.length > 0) {
-                    let html = '';
-                    data.explanations.forEach(exp => {
-                        html += `
-                            <div class="explanation">
-                                <div class="timestamp">🤖 Fault ${exp.fault_type} Analysis [${exp.timestamp}]</div>
-                                <div class="content">${exp.explanation}</div>
-                                <small>Data file: ${exp.file}</small>
-                            </div>
-                        `;
-                    });
-                    document.getElementById('explanations').innerHTML = html;
-                }
-            });
-        }
-    </script>
-</body>
-</html>
-"""
+    def map_tep_to_faultexplainer(self, tep_data):
+        """Convert TEP variable names to FaultExplainer format.
+        Supports both XMEAS_* input and already-friendly names (e.g., 'A Feed').
+        """
+        mapped_data = {}
 
-@app.route('/')
-def index():
-    return render_template_string(HTML_TEMPLATE)
-
-@app.route('/establish_baseline', methods=['POST'])
-def establish_baseline():
-    try:
-        success = bridge.start_normal_operation()
-        if success:
-            return jsonify({'success': True, 'message': '✅ Normal baseline established'})
+        # Case 1: XMEAS_* style keys present
+        has_xmeas = any(k.startswith('XMEAS_') for k in tep_data.keys())
+        if has_xmeas:
+            for tep_name, fe_name in self.variable_mapping.items():
+                if tep_name in tep_data:
+                    mapped_data[fe_name] = tep_data[tep_name]
         else:
-            return jsonify({'success': False, 'message': '❌ Failed to establish baseline'})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'❌ Error: {e}'})
+            # Case 2: Already-friendly keys present; pass through expected keys
+            for fe_name in self.variable_mapping.values():
+                if fe_name in tep_data:
+                    mapped_data[fe_name] = tep_data[fe_name]
 
-@app.route('/start_fault', methods=['POST'])
-def start_fault():
-    try:
-        data = request.get_json()
-        fault_type = data.get('fault_type', 1)
-        intensity = data.get('intensity', 1.0)
-        
-        bridge.start_fault_simulation(fault_type, intensity)
-        bridge.monitoring = True
-        
-        # Start monitoring in background
-        threading.Thread(target=bridge.monitor_for_faults, args=(10,), daemon=True).start()
-        
-        return jsonify({'success': True, 'message': f'✅ Fault {fault_type} simulation started'})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'❌ Error: {e}'})
+        # Add timestamp and step info (optional)
+        mapped_data['timestamp'] = tep_data.get('timestamp', time.time())
+        mapped_data['step'] = tep_data.get('step', tep_data.get('time', 0))
 
-@app.route('/stop', methods=['POST'])
-def stop():
-    bridge.monitoring = False
-    return jsonify({'success': True, 'message': '⏹️ Monitoring stopped'})
-
-@app.route('/get_explanations')
-def get_explanations():
-    return jsonify({'explanations': bridge.llm_explanations})
-
-if __name__ == '__main__':
-    print("🎛️ Starting TEP-FaultExplainer Bridge")
-    print("🌐 Open your browser to: http://localhost:8083")
-    print("📋 Make sure FaultExplainer backend is running on port 8000")
+        return mapped_data
     
-    app.run(host='0.0.0.0', port=8083, debug=False)
+    def send_to_faultexplainer(self, window_data):
+        """Legacy stub retained for compatibility. Backend no longer exposes /analyze.
+        Live LLM triggering is handled inside /ingest; nothing to call here.
+        """
+        print("ℹ️ Skipping legacy /analyze call (handled by /ingest now)")
+        return None
+    
+    def process_data_point(self, tep_data):
+        """Process a single TEP data point"""
+        # Map TEP variables to FaultExplainer format
+        mapped_data = self.map_tep_to_faultexplainer(tep_data)
+
+        # POST live point immediately for PCA + LLM triggering
+        try:
+            resp = requests.post(
+                f"{self.faultexplainer_url}/ingest",
+                json={"data_point": {k: v for k, v in mapped_data.items() if k in self.variable_mapping.values()}},
+                timeout=60,
+            )
+            if resp.status_code == 200:
+                info = resp.json()
+                if info.get("llm", {}).get("status") == "triggered":
+                    print("🤖 LLM analysis triggered (live)")
+            else:
+                print(f"⚠️ Ingest HTTP {resp.status_code}")
+        except Exception as e:
+            print(f"❌ Error posting /ingest: {e}")
+
+        # Also maintain a local sliding window for optional /analyze batch route (legacy)
+        self.data_buffer.append(mapped_data)
+        print(f"📊 Buffer size: {len(self.data_buffer)}/{self.window_size}")
+        if len(self.data_buffer) == self.window_size:
+            # Legacy batch call removed; /ingest already triggers LLM when criteria met
+            pass
+        return None
+    
+    def run_bridge(self):
+        """Main bridge loop - monitors TEP data and sends to FaultExplainer"""
+        print("🚀 Starting TEP-FaultExplainer bridge...")
+        print("📡 Monitoring for new TEP data...")
+        
+        while True:
+            try:
+                # Check for new data
+                new_data_points = self.read_new_data()
+                
+                if new_data_points:
+                    print(f"📥 Found {len(new_data_points)} new data points")
+                    
+                    for data_point in new_data_points:
+                        result = self.process_data_point(data_point)
+                        
+                        if result:
+                            print(f"🎯 Analysis complete for step {data_point['step']}")
+                
+                # Wait before checking again
+                time.sleep(5)
+                
+            except KeyboardInterrupt:
+                print("\n🛑 Bridge stopped by user")
+                break
+            except Exception as e:
+                print(f"❌ Bridge error: {e}")
+                time.sleep(10)
+
+def main():
+    """Run the bridge"""
+    bridge = TEPFaultExplainerBridge()
+    
+    print("\n" + "="*60)
+    print("🌉 TEP-FAULTEXPLAINER DATA BRIDGE")
+    print("="*60)
+    print("This connects live TEP simulation to FaultExplainer analysis")
+    print()
+    print("📋 Prerequisites:")
+    print("1. TEP simulation running (generating data/live_tep_data.csv)")
+    print("2. FaultExplainer backend running (http://localhost:8000)")
+    print()
+    print("🔄 Data Flow:")
+    print("TEP Simulation → CSV → Bridge → FaultExplainer → Analysis")
+    print()
+    
+    # Check prerequisites
+    if not bridge.check_faultexplainer_status():
+        print("❌ FaultExplainer backend not running!")
+        print("💡 Start it with: cd external_repos/FaultExplainer-main/backend && python app.py")
+        return
+    
+    if not os.path.exists(bridge.live_data_file):
+        print("❌ No live TEP data found!")
+        print("💡 Start TEP simulation with: python real_tep_simulator.py")
+        return
+    
+    print("✅ All prerequisites met - starting bridge...")
+    bridge.run_bridge()
+
+if __name__ == "__main__":
+    main()
