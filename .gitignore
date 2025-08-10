@@ -103,3 +103,4 @@ data/simulation_results/*.dat
 
 # Local data that might be large
 data/large_files/
+.claude/
