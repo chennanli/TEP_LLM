@@ -928,62 +928,6 @@ CONTROL_PANEL_HTML = '''
         .live-badge { display:inline-block; padding:4px 10px; border-radius:12px; font-weight:700; font-size:12px; margin-left:8px; }
         .live-ok { background:#4CAF50; color:#fff; }
         .live-bad { background:#f44336; color:#fff; }
-
-        /* Tab Styles */
-        .tab-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            margin: 0 5px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        .tab-btn:hover { background: rgba(255,255,255,0.3); }
-        .tab-btn.active { background: rgba(255,255,255,0.4); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        /* Documentation Styles */
-        .docs-section {
-            background: #f8f9fa;
-            padding: 25px;
-            margin: 20px 0;
-            border-radius: 15px;
-            border-left: 5px solid #17a2b8;
-        }
-        .docs-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .docs-table th, .docs-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
-        .docs-table th {
-            background: #4facfe;
-            color: white;
-            font-weight: 600;
-        }
-        .docs-table tr:hover { background: #f8f9fa; }
-        .code-block {
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            margin: 10px 0;
-            overflow-x: auto;
-        }
     </style>
 </head>
 <body>
@@ -1010,12 +954,10 @@ CONTROL_PANEL_HTML = '''
         <!-- Status Display for Form Actions -->
         <div id="form-status" style="display: none; padding: 15px; margin: 10px; border-radius: 8px; font-weight: bold;"></div>
 
-        <!-- Tab Content: Control Panel -->
-        <div id="control-tab" class="tab-content active">
-            <!-- JavaScript Status -->
-            <div id="js-status-indicator" style="background: #e3f2fd; padding: 8px; margin: 10px; border-radius: 5px; font-size: 12px; text-align: center;">
-                🔧 JavaScript Status: <span id="js-status" style="color: orange;">Loading...</span>
-            </div>
+        <!-- JavaScript Status -->
+        <div id="js-status-indicator" style="background: #e3f2fd; padding: 8px; margin: 10px; border-radius: 5px; font-size: 12px; text-align: center;">
+            🔧 JavaScript Status: <span id="js-status" style="color: orange;">Loading...</span>
+        </div>
 
         <!-- EMERGENCY FALLBACK: Form-based controls (REMOVED) -->
         <!--
@@ -1279,163 +1221,7 @@ CONTROL_PANEL_HTML = '''
         }, 500);
 
         // All functions are in external JS file - no inline functions needed
-
-        // Tab switching function
-        function showTab(tabName) {
-            // Hide all tab contents
-            var contents = document.querySelectorAll('.tab-content');
-            contents.forEach(function(content) {
-                content.classList.remove('active');
-            });
-
-            // Remove active class from all tab buttons
-            var buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(function(btn) {
-                btn.classList.remove('active');
-            });
-
-            // Show selected tab content
-            document.getElementById(tabName + '-tab').classList.add('active');
-
-            // Add active class to clicked button
-            event.target.classList.add('active');
-        }
     </script>
-        </div> <!-- End Control Tab -->
-
-        <!-- Tab Content: Documentation -->
-        <div id="docs-tab" class="tab-content">
-            <div class="docs-section">
-                <h3>📚 System Documentation</h3>
-
-                <div class="docs-section">
-                    <h4>🌉 Bridge Functionality</h4>
-                    <p><strong>Q: Why is "Start Bridge" optional?</strong></p>
-                    <p><strong>A:</strong> The TEP simulation has a <strong>built-in bridge</strong> that automatically posts data to FaultExplainer!</p>
-
-                    <div class="code-block">
-TEP Simulation → Automatic Data Flow → FaultExplainer
-(No separate bridge needed!)
-                    </div>
-
-                    <p><strong>Two Bridge Options:</strong></p>
-                    <ul>
-                        <li><strong>Built-in Bridge</strong> (automatic) - TEP simulation directly posts to FaultExplainer</li>
-                        <li><strong>External Bridge</strong> (optional) - Separate bridge script for advanced scenarios</li>
-                    </ul>
-
-                    <p><strong>🎯 Recommendation:</strong> Just use "Start TEP" + "Start Backend" - the bridge is automatic!</p>
-                </div>
-
-                <div class="docs-section">
-                    <h4>🎛️ Preset Modes Comparison</h4>
-                    <table class="docs-table">
-                        <thead>
-                            <tr>
-                                <th>Setting</th>
-                                <th>🚀 Demo</th>
-                                <th>⚖️ Balanced</th>
-                                <th>🏭 Realistic</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>TEP Simulation Speed</strong></td>
-                                <td>4 seconds</td>
-                                <td>60 seconds (1 min)</td>
-                                <td>180 seconds (3 min)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>PCA Window Size</strong></td>
-                                <td>8 samples</td>
-                                <td>12 samples</td>
-                                <td>20 samples</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Anomaly Trigger</strong></td>
-                                <td>3 consecutive</td>
-                                <td>2 consecutive</td>
-                                <td>6 consecutive</td>
-                            </tr>
-                            <tr>
-                                <td><strong>LLM Min Interval</strong></td>
-                                <td>0 seconds (instant)</td>
-                                <td>20 seconds</td>
-                                <td>300 seconds (5 min)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Data Decimation</strong></td>
-                                <td>1 (all data)</td>
-                                <td>4 (every 4th)</td>
-                                <td>1 (all data)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Use Case</strong></td>
-                                <td>Testing & Demo</td>
-                                <td>Development</td>
-                                <td>Industrial Deployment</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="docs-section">
-                    <h4>📊 Data Flow Ratios</h4>
-
-                    <p><strong>🚀 Demo Mode:</strong></p>
-                    <ul>
-                        <li>TEP: Every 4 seconds</li>
-                        <li>Anomaly Detection: Every 4 seconds (immediate)</li>
-                        <li>LLM: Instant when anomaly detected</li>
-                        <li><strong>Ratio:</strong> 1:1:immediate (very fast, lots of analysis)</li>
-                    </ul>
-
-                    <p><strong>⚖️ Balanced Mode:</strong></p>
-                    <ul>
-                        <li>TEP: Every 60 seconds (1 min)</li>
-                        <li>Anomaly Detection: Every 60 seconds</li>
-                        <li>LLM: Minimum 20 seconds between calls</li>
-                        <li><strong>Ratio:</strong> 1:1:controlled (moderate speed, controlled analysis)</li>
-                    </ul>
-
-                    <p><strong>🏭 Realistic Mode:</strong></p>
-                    <ul>
-                        <li>TEP: Every 180 seconds (3 min)</li>
-                        <li>Anomaly Detection: Every 180 seconds</li>
-                        <li>LLM: Minimum 300 seconds (5 min) between calls</li>
-                        <li><strong>Ratio:</strong> 1:1:5min-minimum (real industrial timing)</li>
-                    </ul>
-                </div>
-
-                <div class="docs-section">
-                    <h4>🚀 Quick Start Guide</h4>
-                    <ol>
-                        <li><strong>Start TEP</strong> (orange button) - Starts chemical plant simulation</li>
-                        <li><strong>Start Backend</strong> (blue button) - Starts FaultExplainer analysis engine</li>
-                        <li><strong>Start Frontend</strong> (purple button) - Starts FaultExplainer web interface (optional)</li>
-                        <li><strong>Choose Preset:</strong> Demo (fast testing) | Balanced (development) | Realistic (industrial)</li>
-                        <li><strong>Inject Faults:</strong> Use IDV sliders to simulate plant disturbances</li>
-                        <li><strong>Monitor Results:</strong> Click "Show Last 5 Analyses" to see LLM diagnosis</li>
-                    </ol>
-
-                    <p><strong>🎯 Note:</strong> "Start Bridge" is optional - the bridge is built-in!</p>
-                </div>
-
-                <div class="docs-section">
-                    <h4>🔧 IDV Fault Types</h4>
-                    <ul>
-                        <li><strong>IDV_1:</strong> A/C Feed Ratio - Feed composition disturbance</li>
-                        <li><strong>IDV_2:</strong> B Composition - Feed quality variation</li>
-                        <li><strong>IDV_3:</strong> D Feed Temperature - Thermal disturbance</li>
-                        <li><strong>IDV_4:</strong> Reactor Cooling - Heat removal issues</li>
-                        <li><strong>IDV_5:</strong> Condenser Cooling - Cooling system problems</li>
-                        <li><strong>IDV_6:</strong> A Feed Loss - Feed supply interruption</li>
-                    </ul>
-                    <p><strong>Range:</strong> 0.0 (no fault) to 1.0 (maximum fault intensity)</p>
-                </div>
-            </div>
-        </div> <!-- End Documentation Tab -->
-
 </body>
 </html>
 '''

@@ -635,88 +635,28 @@ function showAnalysisHistory() {
         });
 }
 
-
+function copyAnalysisHistory() {
+    console.log('copyAnalysisHistory() called from external JS');
+    var limitSel = document.getElementById('history-limit');
+    var limit = limitSel ? parseInt(limitSel.value) : 5;
+    fetch('/api/backend/analysis/history?limit=' + limit)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var lines = (data.items || []).map(function(it, idx) {
+                var ts = it.timestamp || new Date((it.time || 0) * 1000).toLocaleTimeString();
+                var header = '#' + (idx + 1) + ' — ' + ts;
+                return header + '\n' + (it.feature_analysis || '');
+            }).join('\n\n');
+            navigator.clipboard.writeText(lines).then(function() {
+                showMessage('Copied analysis history to clipboard', 'success');
+            });
+        })
+        .catch(function(e) { showMessage('Copy failed: ' + e, 'error'); });
+}
 
 function downloadAnalysis(fmt) {
     console.log('downloadAnalysis() called with format:', fmt);
-    showMessage('Preparing download...', 'info');
-
-    // Get analysis history and create download
-    var limitSel = document.getElementById('history-limit');
-    var limit = limitSel ? parseInt(limitSel.value) : 5;
-
-    fetch('/api/backend/analysis/history?limit=' + limit)
-        .then(function(r) {
-            if (!r.ok) throw new Error('Backend not available (port 8000)');
-            return r.json();
-        })
-        .then(function(data) {
-            if (!data.items || !data.items.length) {
-                showMessage('No analysis data to download', 'error');
-                return;
-            }
-
-            var content = '';
-            var filename = '';
-
-            if (fmt === 'json') {
-                // JSON format - single JSON array
-                content = JSON.stringify(data.items, null, 2);
-                filename = 'tep_analysis_history.json';
-            } else if (fmt === 'md') {
-                // Markdown format
-                var lines = ['# TEP Analysis History\n'];
-                data.items.forEach(function(item, i) {
-                    var ts = item.timestamp || 'Unknown time';
-                    lines.push('## Analysis #' + (i + 1) + ' - ' + ts + '\n');
-                    lines.push('**Feature Analysis:**\n```\n' + (item.feature_analysis || 'N/A') + '\n```\n');
-
-                    if (item.llm_analyses) {
-                        lines.push('**LLM Analysis Results:**\n');
-                        for (var model in item.llm_analyses) {
-                            var analysis = item.llm_analyses[model];
-                            if (analysis && analysis.analysis) {
-                                lines.push('### ' + model.toUpperCase() + '\n');
-                                lines.push(analysis.analysis + '\n');
-                                if (analysis.response_time) {
-                                    lines.push('*Response time: ' + analysis.response_time + 's*\n');
-                                }
-                            }
-                        }
-                    }
-
-                    if (item.performance_summary) {
-                        lines.push('**Performance Summary:**\n');
-                        for (var model in item.performance_summary) {
-                            var perf = item.performance_summary[model];
-                            lines.push('- ' + model + ': ' + (perf.response_time || 0) + 's, ' + (perf.word_count || 0) + ' words\n');
-                        }
-                    }
-                    lines.push('\n---\n');
-                });
-                content = lines.join('\n');
-                filename = 'tep_analysis_history.md';
-            } else {
-                showMessage('Invalid format: ' + fmt, 'error');
-                return;
-            }
-
-            // Create and trigger download
-            var blob = new Blob([content], { type: 'text/plain' });
-            var url = window.URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-
-            showMessage('Downloaded ' + filename + ' with ' + data.items.length + ' analysis entries', 'success');
-        })
-        .catch(function(e) {
-            showMessage('Download failed: ' + e + '. Make sure FaultExplainer backend is running on port 8000, or try copying the displayed analysis instead.', 'error');
-        });
+    window.location = '/api/analysis/history/download/' + fmt;
 }
 
 function downloadAnalysisByDate() {

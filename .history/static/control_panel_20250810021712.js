@@ -635,7 +635,60 @@ function showAnalysisHistory() {
         });
 }
 
+function copyAnalysisHistory() {
+    console.log('copyAnalysisHistory() called from external JS');
 
+    // Try to get from display first
+    var box = document.getElementById('analysis-history-box');
+    if (box && box.textContent && box.textContent.trim() && !box.textContent.includes('no analysis history')) {
+        navigator.clipboard.writeText(box.textContent).then(function() {
+            showMessage('Analysis history copied to clipboard', 'success');
+        }).catch(function(e) {
+            showMessage('Copy failed: ' + e, 'error');
+        });
+        return;
+    }
+
+    // Fallback: try to fetch from backend
+    var limitSel = document.getElementById('history-limit');
+    var limit = limitSel ? parseInt(limitSel.value) : 5;
+    fetch('/api/backend/analysis/history?limit=' + limit)
+        .then(function(r) {
+            if (!r.ok) throw new Error('Backend not available (port 8000)');
+            return r.json();
+        })
+        .then(function(data) {
+            var lines = (data.items || []).map(function(it, idx) {
+                var ts = it.timestamp || new Date((it.time || 0) * 1000).toLocaleTimeString();
+                var header = '#' + (idx + 1) + ' — ' + ts;
+                var featureAnalysis = it.feature_analysis || '';
+                var summary = it.performance_summary ? JSON.stringify(it.performance_summary) : '';
+
+                // Add LLM analysis content
+                var llmContent = '';
+                if (it.llm_analyses) {
+                    for (var model in it.llm_analyses) {
+                        var analysis = it.llm_analyses[model];
+                        if (analysis && analysis.analysis) {
+                            llmContent += '\n\n=== ' + model.toUpperCase() + ' ANALYSIS ===\n';
+                            llmContent += analysis.analysis;
+                            if (analysis.response_time) {
+                                llmContent += '\n(Response time: ' + analysis.response_time + 's)';
+                            }
+                        }
+                    }
+                }
+
+                return header + '\n' + featureAnalysis + llmContent + '\n' + summary;
+            }).join('\n\n-------------------------------------\n');
+            navigator.clipboard.writeText(lines).then(function() {
+                showMessage('Analysis history with LLM content copied to clipboard', 'success');
+            });
+        })
+        .catch(function(e) {
+            showMessage('Copy failed: ' + e + '. Try clicking "Show Last 5 Analyses" first.', 'error');
+        });
+}
 
 function downloadAnalysis(fmt) {
     console.log('downloadAnalysis() called with format:', fmt);
@@ -715,7 +768,7 @@ function downloadAnalysis(fmt) {
             showMessage('Downloaded ' + filename + ' with ' + data.items.length + ' analysis entries', 'success');
         })
         .catch(function(e) {
-            showMessage('Download failed: ' + e + '. Make sure FaultExplainer backend is running on port 8000, or try copying the displayed analysis instead.', 'error');
+            showMessage('Download failed: ' + e, 'error');
         });
 }
 
