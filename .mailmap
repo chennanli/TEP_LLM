@@ -1,0 +1,5 @@
+# .mailmap file to ensure consistent git attribution
+chennanli <chennanli@gmail.com>
+chennanli <chennanli@gmail.com> claude <claude@anthropic.com>
+chennanli <chennanli@gmail.com> Claude <claude@anthropic.com>
+chennanli <chennanli@gmail.com> claude Claude
