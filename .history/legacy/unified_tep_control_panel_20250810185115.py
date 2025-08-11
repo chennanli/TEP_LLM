@@ -25,10 +25,7 @@ import requests
 
 def resolve_venv_python():
     """Prefer .venv over tep_env. Return absolute python path for current OS."""
-    # Get the project root (parent of legacy directory)
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    cwd = project_root
+    cwd = os.getcwd()
     if sys.platform.startswith('win'):
         candidates = [
             os.path.join(cwd, '.venv', 'Scripts', 'python.exe'),
@@ -764,13 +761,8 @@ class UnifiedControlPanel:
                 if 'tep_bridge' in self.bridge.processes and self.bridge.check_process_status('tep_bridge'):
                     success, message = True, 'Bridge already running'
                 else:
-                    # Get project root (parent of legacy directory) for venv and bridge script
-                    script_dir = os.path.dirname(os.path.abspath(__file__))
-                    project_root = os.path.dirname(script_dir)
-                    venv_python = os.path.join(project_root, 'tep_env','bin','python')
-                    bridge_script_dir = script_dir  # Bridge script is in legacy directory
-                    process = subprocess.Popen([venv_python, 'tep_faultexplainer_bridge.py'],
-                                               cwd=bridge_script_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    process = subprocess.Popen([os.path.join(os.getcwd(), 'tep_env','bin','python'), 'tep_faultexplainer_bridge.py'],
+                                               cwd=os.getcwd(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                     self.bridge.processes['tep_bridge'] = process
                     success, message = True, 'Bridge started'
             except Exception as e:

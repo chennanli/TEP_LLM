@@ -145,7 +145,7 @@ const PerformanceComparison: React.FC<{ performance: Record<string, any> }> = ({
             return (
               <Table.Tr key={model}>
                 <Table.Td>
-                  <Text tt="capitalize" fw={500}>{getDisplayName(model)}</Text>
+                  <Text tt="capitalize" fw={500}>{model}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Group>

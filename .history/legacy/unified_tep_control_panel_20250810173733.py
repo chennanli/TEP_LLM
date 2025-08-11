@@ -25,19 +25,23 @@ import requests
 
 def resolve_venv_python():
     """Prefer .venv over tep_env. Return absolute python path for current OS."""
-    # Get the project root (parent of legacy directory)
+    # Get the script directory (legacy/) and look for venv in parent directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    cwd = project_root
+    parent_dir = os.path.dirname(script_dir)
+
     if sys.platform.startswith('win'):
         candidates = [
-            os.path.join(cwd, '.venv', 'Scripts', 'python.exe'),
-            os.path.join(cwd, 'tep_env', 'Scripts', 'python.exe'),
+            os.path.join(parent_dir, '.venv', 'Scripts', 'python.exe'),
+            os.path.join(parent_dir, 'tep_env', 'Scripts', 'python.exe'),
+            os.path.join(script_dir, '.venv', 'Scripts', 'python.exe'),
+            os.path.join(script_dir, 'tep_env', 'Scripts', 'python.exe'),
         ]
     else:
         candidates = [
-            os.path.join(cwd, '.venv', 'bin', 'python'),
-            os.path.join(cwd, 'tep_env', 'bin', 'python'),
+            os.path.join(parent_dir, '.venv', 'bin', 'python'),
+            os.path.join(parent_dir, 'tep_env', 'bin', 'python'),
+            os.path.join(script_dir, '.venv', 'bin', 'python'),
+            os.path.join(script_dir, 'tep_env', 'bin', 'python'),
         ]
     for p in candidates:
         if os.path.exists(p):
@@ -98,7 +102,7 @@ class TEPDataBridge:
     def setup_tep2py(self):
         """Setup real tep2py simulator."""
         try:
-            # Get script directory and build path to external_repos
+            # Get the script directory (legacy/) and build path from there
             script_dir = os.path.dirname(os.path.abspath(__file__))
             tep_path = os.path.join(script_dir, 'external_repos', 'tep2py-master')
             if tep_path not in sys.path:
@@ -405,7 +409,7 @@ class TEPDataBridge:
     def start_faultexplainer_backend(self):
         """Start FaultExplainer backend."""
         try:
-            # Get script directory and build path to external_repos
+            # Get the script directory (legacy/) and build path from there
             script_dir = os.path.dirname(os.path.abspath(__file__))
             backend_path = os.path.join(script_dir, 'external_repos', 'FaultExplainer-main', 'backend')
 
@@ -450,7 +454,7 @@ class TEPDataBridge:
     def start_faultexplainer_backend_dev(self):
         """Start backend in dev (uvicorn reload) mode."""
         try:
-            # Get script directory and build path to external_repos
+            # Get the script directory (legacy/) and build path from there
             script_dir = os.path.dirname(os.path.abspath(__file__))
             backend_path = os.path.join(script_dir, 'external_repos', 'FaultExplainer-main', 'backend')
             # Kill existing backend
@@ -505,7 +509,7 @@ class TEPDataBridge:
     def start_faultexplainer_frontend(self):
         """Start FaultExplainer frontend."""
         try:
-            # Get script directory and build path to external_repos
+            # Get the script directory (legacy/) and build path from there
             script_dir = os.path.dirname(os.path.abspath(__file__))
             frontend_path = os.path.join(script_dir, 'external_repos', 'FaultExplainer-main', 'frontend')
 
@@ -703,7 +707,7 @@ class UnifiedControlPanel:
             # Only allow known names
             if name not in ('sse','ingest'):
                 return jsonify({'error':'invalid log'}), 400
-            # Get script directory and build path to external_repos
+            # Get the script directory (legacy/) and build path from there
             script_dir = os.path.dirname(os.path.abspath(__file__))
             bdir = os.path.join(script_dir, 'external_repos','FaultExplainer-main','backend','diagnostics')
             path = os.path.join(bdir, f"{name}.log")
@@ -718,7 +722,7 @@ class UnifiedControlPanel:
 
         @self.app.route('/api/analysis/history/download/<fmt>')
         def download_history(fmt):
-            # Get script directory and build path to external_repos
+            # Get the script directory (legacy/) and build path from there
             script_dir = os.path.dirname(os.path.abspath(__file__))
             diag_dir = os.path.join(script_dir, 'external_repos','FaultExplainer-main','backend','diagnostics')
             if fmt == 'jsonl':
@@ -739,7 +743,7 @@ class UnifiedControlPanel:
         @self.app.route('/api/analysis/history/download/bydate/<datestr>')
         def download_history_by_date(datestr):
             # datestr format: YYYY-MM-DD
-            # Get script directory and build path to external_repos
+            # Get the script directory (legacy/) and build path from there
             script_dir = os.path.dirname(os.path.abspath(__file__))
             diag_dir = os.path.join(script_dir, 'external_repos','FaultExplainer-main','backend','diagnostics','analysis_history')
             path = os.path.join(diag_dir, f"{datestr}.md")
@@ -764,13 +768,12 @@ class UnifiedControlPanel:
                 if 'tep_bridge' in self.bridge.processes and self.bridge.check_process_status('tep_bridge'):
                     success, message = True, 'Bridge already running'
                 else:
-                    # Get project root (parent of legacy directory) for venv and bridge script
+                    # Get the script directory (legacy/) and build paths from there
                     script_dir = os.path.dirname(os.path.abspath(__file__))
-                    project_root = os.path.dirname(script_dir)
-                    venv_python = os.path.join(project_root, 'tep_env','bin','python')
-                    bridge_script_dir = script_dir  # Bridge script is in legacy directory
+                    # Virtual environment is in parent directory
+                    venv_python = os.path.join(os.path.dirname(script_dir), 'tep_env','bin','python')
                     process = subprocess.Popen([venv_python, 'tep_faultexplainer_bridge.py'],
-                                               cwd=bridge_script_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                                               cwd=script_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                     self.bridge.processes['tep_bridge'] = process
                     success, message = True, 'Bridge started'
             except Exception as e:

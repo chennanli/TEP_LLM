@@ -112,15 +112,6 @@ const PerformanceComparison: React.FC<{ performance: Record<string, any> }> = ({
   const models = Object.keys(performance);
   const maxTime = Math.max(...models.map(m => performance[m].response_time));
 
-  // Map backend model names to display names
-  const getDisplayName = (backendName: string) => {
-    const nameMap: Record<string, string> = {
-      'anthropic': 'LM Studio',
-      'gemini': 'Claude'
-    };
-    return nameMap[backendName.toLowerCase()] || backendName;
-  };
-
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
       <Text fw={600} size="lg" mb="md">
@@ -145,7 +136,7 @@ const PerformanceComparison: React.FC<{ performance: Record<string, any> }> = ({
             return (
               <Table.Tr key={model}>
                 <Table.Td>
-                  <Text tt="capitalize" fw={500}>{getDisplayName(model)}</Text>
+                  <Text tt="capitalize" fw={500}>{model}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Group>

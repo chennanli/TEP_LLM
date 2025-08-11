@@ -22,7 +22,6 @@ import {
   IconRobot,
   IconReport,
   IconBrain,
-  IconSettings,
 } from "@tabler/icons-react";
 // import { fetchEventSource } from "@microsoft/fetch-event-source";
 
@@ -637,7 +636,7 @@ export default function App() {
               {/* Left side: brand + fault selector */}
               <Group align="center" gap="md" wrap="nowrap">
                 <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-                <Text fw={700} size="xl">Fault Analysis</Text>
+                <Text fw={700} size="xl">FaultExplainer</Text>
                 <label htmlFor="fileSelect">Fault:</label>
                 <Select
                   id="fileSelect"
@@ -720,16 +719,6 @@ export default function App() {
                 to={"/comparative"}
                 variant="filled"
                 active={location.pathname === "/comparative"}
-              />
-              <NavLink
-                autoContrast
-                key={"control"}
-                leftSection={<IconSettings size="1.5rem" />}
-                label={<Text size="lg">Control Panel</Text>}
-                component={Link}
-                to={"/control"}
-                variant="filled"
-                active={location.pathname === "/control"}
               />
             </Box>
           </AppShell.Navbar>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import Papa from "papaparse";
 import {
@@ -11,7 +11,6 @@ import {
   Select,
   Slider,
   Text,
-  Button,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import intro_image from "./assets/intro.json";
@@ -21,10 +20,10 @@ import {
   IconChartHistogram,
   IconRobot,
   IconReport,
-  IconBrain,
-  IconSettings,
 } from "@tabler/icons-react";
-// import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
+import fs from 'fs';
+import path from 'path';
 
 // CONSTANTS
 const fileId2fileName = [
@@ -281,7 +280,7 @@ The inert and byproduct are primarily purged from the system as a vapor from the
 // // Extract the postFaultThreshold value
 // const postFaultThreshold: number = config.fault_trigger_consecutive_step-1;
 // const topkfeatures: number = config.topkfeatures;
-const postFaultThreshold: number = 2; // trigger earlier in Live mode
+const postFaultThreshold: number = 6-1;
 const topkfeatures: number = 6;
 
 // TYPES
@@ -313,10 +312,6 @@ interface SimulatorInterface {
 const DataPointsContext = createContext<DataPointsId>({} as DataPointsId);
 const ConservationContext = createContext<ChatContextId>({} as ChatContextId);
 const StatContext = createContext<StatContextId[]>({} as StatContextId[]);
-const ComparativeResultsContext = createContext<{
-  results: any;
-  isAnalyzing: boolean;
-}>({ results: null, isAnalyzing: false });
 
 function Simulator({
   csvFile,
@@ -364,40 +359,6 @@ function Simulator({
   return null; // This component doesn't render anything
 }
 
-  function LiveSubscriber({ onRow, onConnect, onDisconnect, onMessage }:
-    { onRow: (row: any) => void; onConnect?: () => void; onDisconnect?: () => void; onMessage?: () => void; }) {
-    const onRowRef = useRef(onRow);
-    const onConnectRef = useRef(onConnect);
-    const onDisconnectRef = useRef(onDisconnect);
-    const onMessageRef = useRef(onMessage);
-
-    // Keep refs updated without re-subscribing
-    useEffect(() => {
-      onRowRef.current = onRow;
-      onConnectRef.current = onConnect;
-      onDisconnectRef.current = onDisconnect;
-      onMessageRef.current = onMessage;
-    });
-
-    useEffect(() => {
-      const es = new EventSource("http://localhost:8000/stream");
-      es.onopen = () => { console.log("[Live] SSE open"); onConnectRef.current && onConnectRef.current(); };
-      es.onerror = () => { console.warn("[Live] SSE error/closed"); onDisconnectRef.current && onDisconnectRef.current(); };
-      es.onmessage = (evt) => {
-        try {
-          const row = JSON.parse(evt.data);
-          onRowRef.current && onRowRef.current(row);
-          onMessageRef.current && onMessageRef.current();
-        } catch (e) {
-          console.error("[Live] parse error", e);
-        }
-      };
-      return () => { console.log("[Live] SSE closing"); es.close(); onDisconnectRef.current && onDisconnectRef.current(); };
-    }, []); // subscribe once
-    return null;
-  }
-
-
 // eslint-disable-next-line react-refresh/only-export-components
 export const startTime = new Date();
 
@@ -430,10 +391,9 @@ function getTopKElements(datapoints: DataPointsId, topK: number) {
 
 export default function App() {
   const [opened, { toggle }] = useDisclosure();
-  const [selectedFileId, setSelectedFileId] = useState<number>(0);
+  const [selectedFileId, setSelectedFileId] = useState<number>(1); // Start with fault1 instead of fault0
   const [sliderValue, setSliderValue] = useState(1); // Default interval of 1 second
   const [interval, setInterval] = useState(1); // Default interval of 1 second
-  const [dataSource, setDataSource] = useState<'Replay' | 'Live'>('Replay');
   const [currentRow, setCurrentRow] = useState<RowType | null>(null);
   const [dataPoints, setDataPoints] = useState<DataPointsId>({});
   const [pause, setPause] = useDisclosure(false);
@@ -441,12 +401,12 @@ export default function App() {
   const [currentFaultId, setCurrentFaultId] = useState<number | null>(null);
   const [prevFaultId, setPrevFaultId] = useState<number>(0);
   const [postFaultDataCount, setPostFaultDataCount] = useState<number>(0);
-  const [liveCount, setLiveCount] = useState<number>(0);
-  // Stabilize flashing: consider connected only after first message within a session.
-  const [liveEverReceived, setLiveEverReceived] = useState<boolean>(false);
-
-  const [liveConnected, setLiveConnected] = useState<boolean>(false);
   const location = useLocation();
+
+  // Debug: Log fault_name array
+  console.log("Available fault files:", fault_name);
+  console.log("Selected file ID:", selectedFileId);
+  console.log("Selected file name:", fault_name[selectedFileId]);
   const intro_msg: ChatMessage = {
     id: "intro",
     role: "assistant",
@@ -455,8 +415,6 @@ export default function App() {
     explanation: false,
   };
   const [conversation, setConversation] = useState<ChatMessage[]>([intro_msg]);
-  const [comparativeResults, setComparativeResults] = useState<any>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   // const [conversation, setConversation] = useState<ChatMessage[]>([]);
 
   const handleFileChange = (value: string | null) => {
@@ -468,69 +426,79 @@ export default function App() {
     console.log("Active file path:", fileId2fileName[selectedFileId]);
   }, [selectedFileId]);
 
-
+  
   async function sendFaultToBackend(
     fault: { [key: string]: number[] },
     id: string,
     filePath: string
   ) {
-    console.log("🔍 Sending fault to backend with file:", filePath);
-    console.log("📊 Fault data:", JSON.stringify({ data: fault, id: id, file: filePath }));
-
-    setIsAnalyzing(true);
-
+    console.log("Sending fault to backend with file:", filePath);
+    console.log("check the datta", JSON.stringify({ data: fault, id: id, file: filePath }));
     const payload = {
       data: fault,
       id: id,
-      file: filePath,
+      file: filePath, // Include the filePath in the request payload
     };
+    await fetchEventSource("http://localhost:8000/explain", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify(payload),
+      async onopen(res) {
+        if (res.ok && res.status === 200) {
+          console.log("Connection made ", res);
+        } else if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          console.log("Client-side error ", res);
+        }
+      },
+      onmessage(event) {
+        console.log("🔍 Frontend received event:", event);
+        console.log("🔍 Event data:", event.data);
 
-    try {
-      const response = await fetch("http://localhost:8000/explain", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+        try {
+          const parsedData = JSON.parse(event.data);
+          console.log("🔍 Parsed data:", parsedData);
 
-      if (response.ok) {
-        const comparativeData = await response.json();
-        console.log("✅ Received comparative analysis:", comparativeData);
-
-        setComparativeResults(comparativeData);
-
-        // Also add to conversation for backward compatibility
-        const summaryMessage: ChatMessage = {
-          id: id,
-          role: "assistant",
-          text: `🤖 **Multi-LLM Analysis Completed**\n\n**Models Used:** ${Object.keys(comparativeData.llm_analyses).join(", ")}\n\n**Analysis Time:** ${comparativeData.timestamp}\n\n*View the Comparative Analysis tab for detailed results.*`,
-          images: [],
-          explanation: true,
-        };
-
-        setConversation((prevMessages) => [...prevMessages, summaryMessage]);
-      } else {
-        console.error("❌ Error response from server:", response.status);
-        throw new Error(`Server error: ${response.status}`);
-      }
-    } catch (error) {
-      console.error("❌ Error sending fault to backend:", error);
-
-      const errorMessage: ChatMessage = {
-        id: id,
-        role: "assistant",
-        text: `❌ **Analysis Failed**\n\nError: ${error}\n\nPlease check that all LLM services are running and try again.`,
-        images: [],
-        explanation: true,
-      };
-
-      setConversation((prevMessages) => [...prevMessages, errorMessage]);
-    } finally {
-      setIsAnalyzing(false);
-    }
+          setConversation((prevMessages) => {
+            console.log("🔍 Current conversation:", prevMessages);
+            const index = prevMessages.findIndex(
+              (message) => message.id === parsedData.id
+            );
+            if (index !== -1) {
+              const updatedMessages = [...prevMessages];
+              updatedMessages[index] = {
+                ...updatedMessages[index],
+                text: updatedMessages[index].text + parsedData.content,
+              };
+              console.log("🔍 Updated existing message:", updatedMessages[index]);
+              return updatedMessages;
+            } else {
+              const newMessage: ChatMessage = {
+                id: parsedData.id,
+                role: "assistant",
+                text: parsedData.content,
+                images: parsedData.images,
+                explanation: true,
+              };
+              console.log("🔍 Created new message:", newMessage);
+              return [...prevMessages, newMessage];
+            }
+          });
+        } catch (error) {
+          console.error("🔍 Error parsing event data:", error);
+        }
+      },
+      onclose() {
+        console.log("Connection closed by the server");
+      },
+      onerror(err) {
+        console.log("There was an error from server", err);
+      },
+    });
   }
-
+  
 
   useEffect(() => {
     if (currentRow) {
@@ -554,13 +522,11 @@ export default function App() {
           );
           const timeString = date.getHours() + ":" + date.getMinutes();
 
-          const anomalyVal = String((currentRow as any).anomaly).toLowerCase() === "true";
-
           return [
             ...data,
             {
-              t2_stat: Number(currentRow.t2_stat),
-              anomaly: anomalyVal,
+              t2_stat: parseFloat(currentRow.t2_stat),
+              anomaly: currentRow.anomaly === "True",
               time: timeString,
             },
           ];
@@ -568,18 +534,15 @@ export default function App() {
           return data;
         }
       });
-
-      const isAnomaly = String((currentRow as any).anomaly).toLowerCase() === "true";
-
-      if (isAnomaly) {
+      if (currentRow.anomaly === "True") {
         if (currentFaultId == null) {
           setCurrentFaultId(prevFaultId + 1);
           setPostFaultDataCount(0);
         } else {
           setPostFaultDataCount((count) => count + 1);
-          if (postFaultDataCount >= postFaultThreshold) {
+          if (postFaultDataCount === postFaultThreshold) {
             setPause.open();
-            const topKKeys = getTopKElements(dataPoints, topkfeatures);
+            const topKKeys = getTopKElements(dataPoints,topkfeatures);
             console.log(topKKeys);
             const filteredObject = topKKeys.reduce(
               (acc: Record<string, number[]>, key) => {
@@ -605,21 +568,12 @@ export default function App() {
   return (
     <div>
       <div id="simulator">
-        {dataSource === 'Replay' ? (
-          <Simulator
-            csvFile={fileId2fileName[selectedFileId]}
-            interval={1000 / interval}
-            setCurrentRow={setCurrentRow}
-            pause={pause}
-          />
-        ) : (
-          <LiveSubscriber
-            onRow={(row)=>{ setCurrentRow(row); if(!liveEverReceived) setLiveEverReceived(true); }}
-            onConnect={() => { /* don't set true until first message */ }}
-            onDisconnect={() => { setLiveConnected(false); setLiveEverReceived(false); }}
-            onMessage={() => { setLiveCount((c) => c + 1); setLiveConnected(true); }}
-          />
-        )}
+        <Simulator
+          csvFile={fileId2fileName[selectedFileId]}
+          interval={1000 / interval}
+          setCurrentRow={setCurrentRow}
+          pause={pause}
+        />
       </div>
       <div>
         <AppShell
@@ -630,54 +584,119 @@ export default function App() {
             collapsed: { mobile: !opened },
           }}
           padding="md"
-
         >
           <AppShell.Header>
-            <Group align="center" gap="xs" h="100%" pl="md" wrap="nowrap" justify="space-between">
-              {/* Left side: brand + fault selector */}
-              <Group align="center" gap="md" wrap="nowrap">
-                <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-                <Text fw={700} size="xl">Fault Analysis</Text>
-                <label htmlFor="fileSelect">Fault:</label>
+            <Group align="center" gap="xs" h="100%" pl="md" wrap="nowrap">
+              <Burger
+                opened={opened}
+                onClick={toggle}
+                hiddenFrom="sm"
+                size="sm"
+              />
+              <Text fw={700} size="xl">
+                FaultExplainer
+              </Text>
+              <Group h="100%" w="200%" justify="center" wrap="nowrap">
+                <Text fw={600} size="lg" c="blue">SELECT FAULT FILE:</Text>
                 <Select
                   id="fileSelect"
-                  inputSize="sm"
+                  size="md"
+                  w={400}
+                  placeholder="Choose a fault file to analyze..."
                   value={fault_name[selectedFileId]}
                   onChange={handleFileChange}
                   data={fault_name}
                   allowDeselect={false}
+                  searchable
+                  styles={{
+                    input: {
+                      backgroundColor: '#e3f2fd',
+                      border: '3px solid #1976d2',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      minHeight: '50px'
+                    },
+                    dropdown: {
+                      backgroundColor: '#f5f5f5',
+                      border: '2px solid #1976d2'
+                    }
+                  }}
                 />
-                {/* Replay speed controls are only for Replay */}
-                {dataSource==='Replay' && (
-                  <>
-                    <ActionIcon variant="subtle" aria-label="Pause/Play" onClick={() => setPause.toggle()}>
-                      {pause ? <IconPlayerPlayFilled stroke={1.5} /> : <IconPlayerPauseFilled stroke={1.5} />}
-                    </ActionIcon>
-                    <Slider min={0} max={20} step={0.0005} value={sliderValue} onChange={setSliderValue} onChangeEnd={setInterval} defaultValue={1} miw="100px" />
-                  </>
-                )}
-              </Group>
+                <Text size="sm" c="gray" ml={10}>
+                  {fault_name.length} files available
+                </Text>
+                <ActionIcon
+                  variant="filled"
+                  color="green"
+                  size="xl"
+                  aria-label="Start Analysis"
+                  onClick={() => setPause.toggle()}
+                  style={{ marginLeft: '10px' }}
+                >
+                  {pause ? (
+                    <IconPlayerPlayFilled size={24} />
+                  ) : (
+                    <IconPlayerPauseFilled size={24} />
+                  )}
+                </ActionIcon>
+                <Text fw={600} size="sm" c="green">
+                  {pause ? "▶️ CLICK TO ANALYZE" : "⏸️ ANALYZING..."}
+                </Text>
 
-              {/* Right side: Live controls */}
-              <Group align="center" gap="sm" wrap="nowrap">
-                <Select
-                  data={[{value:'Replay',label:'Replay (CSV)'},{value:'Live',label:'Live (stream)'}]}
-                  value={dataSource}
-                  onChange={(v)=>setDataSource((v as 'Replay'|'Live')||'Replay')}
-                  miw="160px"
+                {/* Manual Test Button */}
+                <ActionIcon
+                  variant="filled"
+                  color="red"
+                  size="xl"
+                  aria-label="Test Analysis"
+                  onClick={() => {
+                    console.log("Manual test triggered!");
+                    const testData = { "XMEAS(1)": [1.2, 1.3, 1.4], "XMEAS(2)": [2.1, 2.2, 2.3] };
+                    const filePath = fileId2fileName[selectedFileId];
+                    console.log("Using file:", filePath);
+                    sendFaultToBackend(testData, "manual-test", filePath);
+                  }}
+                  style={{ marginLeft: '10px' }}
+                >
+                  🧪
+                </ActionIcon>
+                <Text fw={600} size="sm" c="red">
+                  TEST
+                </Text>
+                <Slider
+                  min={0}
+                  max={20}
+                  step={0.0005}
+                  value={sliderValue}
+                  onChange={setSliderValue}
+                  onChangeEnd={setInterval}
+                  defaultValue={1}
+                  miw="100px"
                 />
-                <Button size="xs" onClick={()=>setDataSource('Live')}>
-                  Use Live
-                </Button>
-                {dataSource==='Live' && (
-                  <span style={{marginLeft:8, padding:'4px 10px', borderRadius:14, fontSize:14, fontWeight:800,
-                                background: liveConnected? '#2e7d32':'#c62828', color:'#fff'}}>
-                    {liveConnected? `Live: ${liveCount}` : 'Live: disconnected'}
-                  </span>
-                )}
               </Group>
             </Group>
           </AppShell.Header>
+
+          {/* Clear Instructions Banner */}
+          <Box
+            style={{
+              backgroundColor: '#fff3cd',
+              border: '2px solid #ffc107',
+              padding: '15px',
+              margin: '10px',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}
+          >
+            <Text fw={700} size="lg" c="orange" mb={5}>
+              🚀 HOW TO USE FAULTEXPLAINER:
+            </Text>
+            <Text fw={600} size="md" c="dark">
+              1️⃣ SELECT a fault file from the dropdown above ⬆️
+              2️⃣ CLICK the green play button ▶️ to start analysis
+              3️⃣ GO TO "Assistant" tab (left sidebar) to see LLM explanation
+            </Text>
+          </Box>
 
           <AppShell.Navbar>
             <Box>
@@ -711,26 +730,6 @@ export default function App() {
                 variant="filled"
                 active={location.pathname === "/history"}
               />
-              <NavLink
-                autoContrast
-                key={"comparative"}
-                leftSection={<IconBrain size="1.5rem" />}
-                label={<Text size="lg">Multi-LLM Analysis</Text>}
-                component={Link}
-                to={"/comparative"}
-                variant="filled"
-                active={location.pathname === "/comparative"}
-              />
-              <NavLink
-                autoContrast
-                key={"control"}
-                leftSection={<IconSettings size="1.5rem" />}
-                label={<Text size="lg">Control Panel</Text>}
-                component={Link}
-                to={"/control"}
-                variant="filled"
-                active={location.pathname === "/control"}
-              />
             </Box>
           </AppShell.Navbar>
 
@@ -740,11 +739,7 @@ export default function App() {
                 value={{ conversation, setConversation }}
               >
                 <DataPointsContext.Provider value={dataPoints}>
-                  <ComparativeResultsContext.Provider
-                    value={{ results: comparativeResults, isAnalyzing }}
-                  >
-                    {currentRow && <Outlet />}
-                  </ComparativeResultsContext.Provider>
+                  {currentRow && <Outlet />}
                 </DataPointsContext.Provider>
               </ConservationContext.Provider>
             </StatContext.Provider>
@@ -763,11 +758,6 @@ export function useDataPoints() {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useConversationState() {
   return useContext(ConservationContext);
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useComparativeResults() {
-  return useContext(ComparativeResultsContext);
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

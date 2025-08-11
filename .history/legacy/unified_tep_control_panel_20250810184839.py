@@ -25,10 +25,7 @@ import requests
 
 def resolve_venv_python():
     """Prefer .venv over tep_env. Return absolute python path for current OS."""
-    # Get the project root (parent of legacy directory)
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    cwd = project_root
+    cwd = os.getcwd()
     if sys.platform.startswith('win'):
         candidates = [
             os.path.join(cwd, '.venv', 'Scripts', 'python.exe'),
@@ -98,9 +95,7 @@ class TEPDataBridge:
     def setup_tep2py(self):
         """Setup real tep2py simulator."""
         try:
-            # Get script directory and build path to external_repos
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            tep_path = os.path.join(script_dir, 'external_repos', 'tep2py-master')
+            tep_path = os.path.join(os.getcwd(), 'external_repos', 'tep2py-master')
             if tep_path not in sys.path:
                 sys.path.insert(0, tep_path)
 
@@ -450,9 +445,7 @@ class TEPDataBridge:
     def start_faultexplainer_backend_dev(self):
         """Start backend in dev (uvicorn reload) mode."""
         try:
-            # Get script directory and build path to external_repos
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            backend_path = os.path.join(script_dir, 'external_repos', 'FaultExplainer-main', 'backend')
+            backend_path = os.path.join(os.getcwd(), 'external_repos', 'FaultExplainer-main', 'backend')
             # Kill existing backend
             if 'faultexplainer_backend' in self.processes:
                 self.processes['faultexplainer_backend'].terminate()
@@ -505,9 +498,7 @@ class TEPDataBridge:
     def start_faultexplainer_frontend(self):
         """Start FaultExplainer frontend."""
         try:
-            # Get script directory and build path to external_repos
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            frontend_path = os.path.join(script_dir, 'external_repos', 'FaultExplainer-main', 'frontend')
+            frontend_path = os.path.join(os.getcwd(), 'external_repos', 'FaultExplainer-main', 'frontend')
 
             # Kill existing frontend if running
             if 'faultexplainer_frontend' in self.processes:
@@ -703,9 +694,7 @@ class UnifiedControlPanel:
             # Only allow known names
             if name not in ('sse','ingest'):
                 return jsonify({'error':'invalid log'}), 400
-            # Get script directory and build path to external_repos
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            bdir = os.path.join(script_dir, 'external_repos','FaultExplainer-main','backend','diagnostics')
+            bdir = os.path.join(os.getcwd(), 'external_repos','FaultExplainer-main','backend','diagnostics')
             path = os.path.join(bdir, f"{name}.log")
             try:
                 if not os.path.exists(path):
@@ -718,9 +707,7 @@ class UnifiedControlPanel:
 
         @self.app.route('/api/analysis/history/download/<fmt>')
         def download_history(fmt):
-            # Get script directory and build path to external_repos
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            diag_dir = os.path.join(script_dir, 'external_repos','FaultExplainer-main','backend','diagnostics')
+            diag_dir = os.path.join(os.getcwd(), 'external_repos','FaultExplainer-main','backend','diagnostics')
             if fmt == 'jsonl':
                 path = os.path.join(diag_dir, 'analysis_history.jsonl')
                 if not os.path.exists(path):
@@ -739,9 +726,7 @@ class UnifiedControlPanel:
         @self.app.route('/api/analysis/history/download/bydate/<datestr>')
         def download_history_by_date(datestr):
             # datestr format: YYYY-MM-DD
-            # Get script directory and build path to external_repos
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            diag_dir = os.path.join(script_dir, 'external_repos','FaultExplainer-main','backend','diagnostics','analysis_history')
+            diag_dir = os.path.join(os.getcwd(), 'external_repos','FaultExplainer-main','backend','diagnostics','analysis_history')
             path = os.path.join(diag_dir, f"{datestr}.md")
             if not os.path.exists(path):
                 return jsonify({'error':'missing'}), 404
@@ -764,13 +749,8 @@ class UnifiedControlPanel:
                 if 'tep_bridge' in self.bridge.processes and self.bridge.check_process_status('tep_bridge'):
                     success, message = True, 'Bridge already running'
                 else:
-                    # Get project root (parent of legacy directory) for venv and bridge script
-                    script_dir = os.path.dirname(os.path.abspath(__file__))
-                    project_root = os.path.dirname(script_dir)
-                    venv_python = os.path.join(project_root, 'tep_env','bin','python')
-                    bridge_script_dir = script_dir  # Bridge script is in legacy directory
-                    process = subprocess.Popen([venv_python, 'tep_faultexplainer_bridge.py'],
-                                               cwd=bridge_script_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    process = subprocess.Popen([os.path.join(os.getcwd(), 'tep_env','bin','python'), 'tep_faultexplainer_bridge.py'],
+                                               cwd=os.getcwd(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                     self.bridge.processes['tep_bridge'] = process
                     success, message = True, 'Bridge started'
             except Exception as e:
