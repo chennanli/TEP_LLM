@@ -48,8 +48,9 @@ const ModelCard: React.FC<{ modelName: string; analysis: LLMAnalysis; performanc
   // Map backend model names to display names
   const getDisplayName = (backendName: string) => {
     const nameMap: Record<string, string> = {
-      'anthropic': 'LM Studio',
-      'gemini': 'Claude'
+      'anthropic': 'Claude',
+      'gemini': 'Gemini',
+      'lmstudio': 'LM Studio'
     };
     return nameMap[backendName.toLowerCase()] || backendName;
   };
@@ -115,8 +116,9 @@ const PerformanceComparison: React.FC<{ performance: Record<string, any> }> = ({
   // Map backend model names to display names
   const getDisplayName = (backendName: string) => {
     const nameMap: Record<string, string> = {
-      'anthropic': 'LM Studio',
-      'gemini': 'Claude'
+      'anthropic': 'Claude',
+      'gemini': 'Gemini',
+      'lmstudio': 'LM Studio'
     };
     return nameMap[backendName.toLowerCase()] || backendName;
   };
