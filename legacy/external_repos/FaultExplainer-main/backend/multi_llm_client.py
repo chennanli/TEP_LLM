@@ -26,7 +26,7 @@ class MultiLLMClient:
                     self.clients[model_name] = self._init_lmstudio(model_config)
                 elif model_name == "gemini":
                     self.clients[model_name] = self._init_gemini(model_config)
-                elif model_name == "claude":
+                elif model_name == "anthropic":
                     self.clients[model_name] = self._init_claude(model_config)
         
         print(f"✅ Initialized LLM clients: {self.enabled_models}")
@@ -60,7 +60,7 @@ class MultiLLMClient:
                     response = await self._query_lmstudio(system_message, user_prompt)
                 elif model_name == "gemini":
                     response = await self._query_gemini(system_message, user_prompt)
-                elif model_name == "claude":
+                elif model_name == "anthropic":
                     response = await self._query_claude(system_message, user_prompt)
                 
                 end_time = time.time()
@@ -153,14 +153,14 @@ class MultiLLMClient:
     
     async def _query_claude(self, system_message: str, user_prompt: str) -> str:
         """Query Claude"""
-        client = self.clients["claude"]
+        client = self.clients["anthropic"]
 
         # Run in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
             lambda: client.messages.create(
-                model=self.config["models"]["claude"]["model_name"],
+                model=self.config["models"]["anthropic"]["model_name"],
                 max_tokens=2000,
                 temperature=0.7,
                 system=system_message,
