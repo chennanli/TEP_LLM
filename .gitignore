@@ -31,12 +31,24 @@ ENV/
 .venv/
 
 # IDE
-.vscode/
+.vscode/settings.json
+.vscode/launch.json
 .idea/
 *.swp
 *.swo
 *~
 .history/
+
+# AI Development Tools (keep .augment for current AI system)
+.bmad-core/
+.clinerules/
+.gemini/
+.cursor/
+.windsurf/
+
+# IDE History and Cache
+.vscode/.ropeproject/
+.vscode/settings.json.bak
 
 # Logs and temporary files
 *.log
