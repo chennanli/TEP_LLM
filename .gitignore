@@ -36,6 +36,7 @@ ENV/
 *.swp
 *.swo
 *~
+.history/
 
 # Logs and temporary files
 *.log
