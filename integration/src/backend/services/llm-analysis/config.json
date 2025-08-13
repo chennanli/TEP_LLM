@@ -1,0 +1,37 @@
+{
+  "prompt": "explain",
+  "fault_trigger_consecutive_step": 6,
+  "topkfeatures": 10,
+  "pca_window_size": 20,
+  "decimation_N": 1,
+  "llm_min_interval_seconds": 60,
+  "anomaly_threshold": 0.05,
+  "models": {
+    "anthropic": {
+      "api_key": "YOUR_ANTHROPIC_API_KEY_HERE",
+      "model_name": "claude-3-5-sonnet-20241022",
+      "enabled": true
+    },
+    "gemini": {
+      "api_key": "YOUR_GOOGLE_GEMINI_API_KEY_HERE",
+      "model_name": "gemini-1.5-pro",
+      "enabled": false
+    }
+  },
+  "analysis": {
+    "threshold": 0.01,
+    "window_size": 100,
+    "min_samples": 10,
+    "pca_components": 10
+  },
+  "lmstudio": {
+    "enabled": false,
+    "base_url": "http://localhost:1234/v1",
+    "model_name": "mistral-small",
+    "api_key": "not-needed"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "llm_analysis.log"
+  }
+}
