@@ -55,7 +55,7 @@ def load_config(file_path):
     return config
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(current_dir, "..", "config.json")
+    config_path = os.path.join(current_dir, "config.json")
     # Load the configuration
     config = load_config(config_path)
 
