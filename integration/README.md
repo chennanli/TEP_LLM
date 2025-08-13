@@ -18,16 +18,49 @@ A production-ready industrial intelligence platform that combines real-time Tenn
 ### **Prerequisites**
 - Python 3.9+
 - Node.js 18+
-- Docker & Docker Compose
+- Virtual environment `tep_env` (in parent directory)
+- Docker & Docker Compose (for containerized deployment)
 - Git
 
-### **Development Setup**
-```bash
-# Clone and setup
-git clone <repository-url>
-cd tep-industrial-intelligence
+### **🎯 Two Ways to Run the System**
 
-# Start all services
+The integration folder supports **both direct execution and Docker deployment**:
+
+1. **Direct Execution** (Recommended for development)
+   - Faster startup and easier debugging
+   - Uses local virtual environment
+   - Hot reload for frontend development
+
+2. **Docker Deployment** (Recommended for production)
+   - Consistent environment across systems
+   - Includes full microservices architecture
+   - Production-ready with monitoring stack
+
+### **Development Setup**
+
+#### **Method 1: Direct Execution (Recommended for Development)**
+```bash
+# Navigate to integration folder
+cd integration
+
+# Option A: Start complete system (both backend + frontend)
+./start-system.sh
+
+# Option B: Start services separately (for development)
+# Terminal 1: Backend
+./start-backend.sh
+
+# Terminal 2: Frontend (new terminal)
+./start-frontend.sh
+
+# Access the platform
+open http://localhost:5173  # Frontend
+open http://localhost:8000  # Backend API
+```
+
+#### **Method 2: Docker Deployment (Production)**
+```bash
+# Start all services with Docker
 make dev-up
 
 # Access the platform
