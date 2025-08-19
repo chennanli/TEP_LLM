@@ -866,13 +866,14 @@ function setIngestion(mode) {
 
 function setIDV(idvNum, value) {
     console.log('setIDV() called with:', idvNum, value);
+    var intValue = parseInt(value);  // Convert to integer (0 or 1)
     var valueSpan = document.getElementById('idv' + idvNum + '-value');
-    if (valueSpan) valueSpan.textContent = parseFloat(value).toFixed(2);
+    if (valueSpan) valueSpan.textContent = intValue === 1 ? 'ON' : 'OFF';
 
     fetch('/api/idv/set', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({idv_num: idvNum, value: parseFloat(value)})
+        body: JSON.stringify({idv_num: idvNum, value: intValue})  // Send integer 0 or 1
     })
     .then(function(response) { return response.json(); })
     .then(function(data) {
@@ -881,6 +882,36 @@ function setIDV(idvNum, value) {
         }
     })
     .catch(function(e) { showMessage('IDV update failed: ' + e, 'error'); });
+}
+
+// Test IDV impact function
+function testIDVImpact() {
+    console.log('testIDVImpact() called');
+    showMessage('Testing IDV impact...', 'info');
+
+    fetch('/api/idv/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        console.log('IDV test response:', d);
+        if (d.test_successful) {
+            var message = 'IDV Test Results:\n';
+            message += 'Baseline Reactor Temp: ' + d.baseline_reactor_temp + '\n';
+            message += 'Fault Reactor Temp: ' + d.fault_reactor_temp + '\n';
+            message += 'Difference Detected: ' + d.difference_detected;
+            alert(message);
+            showMessage('IDV test completed - check console for details', 'success');
+        } else {
+            showMessage('IDV test failed: ' + (d.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(function(e) {
+        console.error('IDV test error:', e);
+        showMessage('IDV test failed: ' + e, 'error');
+    });
 }
 
 // Test functions for emergency fallback
