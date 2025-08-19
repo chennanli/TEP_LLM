@@ -10,6 +10,19 @@ This folder contains the original working TEP system that was developed as a pro
 - **logs/** - System logs and debugging information
 
 ## 🚀 **How to Run Legacy System**
+
+### **Method 1: Quick Start (Recommended)**
+```bash
+# Navigate to legacy folder
+cd legacy
+
+# Run startup script
+./start_legacy_system.sh
+
+# Access at http://localhost:9001
+```
+
+### **Method 2: Manual Start**
 ```bash
 # Activate virtual environment
 source ../tep_env/bin/activate
@@ -18,6 +31,18 @@ source ../tep_env/bin/activate
 python unified_tep_control_panel.py
 
 # Access at http://localhost:9001
+```
+
+### **Optional: Enable RAG (Knowledge Base) Features**
+```bash
+# Install RAG dependencies (optional)
+./install_rag_dependencies.sh
+
+# Add PDF documents to:
+# external_repos/FaultExplainer-main/log_materials/
+
+# Then start system normally
+./start_legacy_system.sh
 ```
 
 ## 📊 **System Components**

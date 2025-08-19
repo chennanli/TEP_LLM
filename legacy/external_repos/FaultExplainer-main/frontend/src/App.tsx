@@ -12,6 +12,12 @@ import {
   Slider,
   Text,
   Button,
+  Switch,
+  Badge,
+  Tooltip,
+  Progress,
+  Checkbox,
+  Divider,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import intro_image from "./assets/intro.json";
@@ -458,6 +464,17 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   // const [conversation, setConversation] = useState<ChatMessage[]>([]);
 
+  // Individual model control state - Gemini as default
+  const [lmstudioEnabled, setLmstudioEnabled] = useState<boolean>(false);
+  const [claudeEnabled, setClaudeEnabled] = useState<boolean>(false);
+  const [geminiEnabled, setGeminiEnabled] = useState<boolean>(true);
+  const [modelStatus, setModelStatus] = useState<any>(null);
+  const [usageStats, setUsageStats] = useState<any>(null);
+
+  // Cost protection state
+  const [sessionStatus, setSessionStatus] = useState<any>(null);
+  const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
+
   const handleFileChange = (value: string | null) => {
     setSelectedFileId(fault_name.indexOf(value ?? fault_name[0]));
   };
@@ -466,6 +483,192 @@ export default function App() {
   useEffect(() => {
     console.log("Active file path:", fileId2fileName[selectedFileId]);
   }, [selectedFileId]);
+
+  // Load model status on component mount
+  useEffect(() => {
+    loadModelStatus();
+    loadSessionStatus();
+    // Load Claude state from localStorage
+    const savedClaudeState = localStorage.getItem('claudeEnabled');
+    if (savedClaudeState !== null) {
+      setClaudeEnabled(JSON.parse(savedClaudeState));
+    }
+
+    // Start session status polling when any premium model is enabled
+    if (claudeEnabled || geminiEnabled) {
+      startSessionPolling();
+    }
+  }, []);
+
+  // Poll session status when any premium model is enabled
+  useEffect(() => {
+    if (claudeEnabled || geminiEnabled) {
+      startSessionPolling();
+    } else {
+      stopSessionPolling();
+    }
+  }, [claudeEnabled, geminiEnabled]);
+
+  // Load model status and sync frontend state on component mount
+  useEffect(() => {
+    loadModelStatus();
+  }, []);
+
+  // Save Claude state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('claudeEnabled', JSON.stringify(claudeEnabled));
+  }, [claudeEnabled]);
+
+  const loadModelStatus = async () => {
+    try {
+      const response = await fetch('/api/models/status');
+      if (response.ok) {
+        const status = await response.json();
+        setModelStatus(status);
+        setUsageStats(status.usage_stats || {});
+
+        // Sync frontend state with backend status (both config and runtime enabled)
+        const activeModels = status.active_models || [];
+        const runtimeEnabled = status.runtime_enabled || [];
+
+        // A model is enabled if it's either config-enabled or runtime-enabled
+        setLmstudioEnabled(activeModels.includes('lmstudio') || runtimeEnabled.includes('lmstudio'));
+        setClaudeEnabled(activeModels.includes('anthropic') || runtimeEnabled.includes('anthropic'));
+        setGeminiEnabled(activeModels.includes('gemini') || runtimeEnabled.includes('gemini'));
+
+        console.log('Model status loaded:', status);
+        console.log('Runtime enabled models:', runtimeEnabled);
+      }
+    } catch (error) {
+      console.error('Failed to load model status:', error);
+    }
+  };
+
+  const toggleModel = async (modelName: string, enabled: boolean) => {
+    try {
+      const response = await fetch('/api/models/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model_name: modelName,
+          enabled: enabled
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+
+        // Update local state
+        if (modelName === 'anthropic') {
+          setClaudeEnabled(enabled);
+        } else if (modelName === 'gemini') {
+          setGeminiEnabled(enabled);
+        } else if (modelName === 'lmstudio') {
+          setLmstudioEnabled(enabled);
+        }
+
+        await loadModelStatus(); // Refresh status
+        console.log(`${modelName} toggled:`, result);
+      } else {
+        console.error(`Failed to toggle ${modelName}`);
+      }
+    } catch (error) {
+      console.error(`Error toggling ${modelName}:`, error);
+    }
+  };
+
+  // Convenience functions for individual models
+  const toggleClaude = (enabled: boolean) => toggleModel('anthropic', enabled);
+  const toggleGemini = (enabled: boolean) => toggleModel('gemini', enabled);
+  const toggleLMStudio = (enabled: boolean) => toggleModel('lmstudio', enabled);
+
+  const loadSessionStatus = async () => {
+    try {
+      const response = await fetch('/api/session/status');
+      if (response.ok) {
+        const status = await response.json();
+        setSessionStatus(status);
+      }
+    } catch (error) {
+      console.error('Failed to load session status:', error);
+    }
+  };
+
+  const startSessionPolling = () => {
+    // Clear existing timer
+    if (sessionTimer) {
+      clearInterval(sessionTimer);
+    }
+
+    // Poll every 30 seconds
+    const timer = setInterval(() => {
+      loadSessionStatus();
+    }, 30000);
+
+    setSessionTimer(timer);
+  };
+
+  const stopSessionPolling = () => {
+    if (sessionTimer) {
+      clearInterval(sessionTimer);
+      setSessionTimer(null);
+    }
+  };
+
+  const extendSession = async (additionalMinutes: number = 30) => {
+    try {
+      const response = await fetch('/api/session/extend', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          additional_minutes: additionalMinutes
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        await loadSessionStatus(); // Refresh status
+        console.log('Session extended:', result);
+        return result;
+      } else {
+        console.error('Failed to extend session');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error extending session:', error);
+      return null;
+    }
+  };
+
+  const forceShutdownPremium = async () => {
+    try {
+      const response = await fetch('/api/session/shutdown', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setClaudeEnabled(false); // Update UI
+        await loadModelStatus(); // Refresh status
+        await loadSessionStatus(); // Refresh session
+        console.log('Premium models shutdown:', result);
+        return result;
+      } else {
+        console.error('Failed to shutdown premium models');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error shutting down premium models:', error);
+      return null;
+    }
+  };
 
 
   async function sendFaultToBackend(
@@ -657,7 +860,7 @@ export default function App() {
                 )}
               </Group>
 
-              {/* Right side: Live controls */}
+              {/* Right side: Live controls + Claude toggle */}
               <Group align="center" gap="sm" wrap="nowrap">
                 <Select
                   data={[{value:'Replay',label:'Replay (CSV)'},{value:'Live',label:'Live (stream)'}]}
@@ -668,11 +871,105 @@ export default function App() {
                 <Button size="xs" onClick={()=>setDataSource('Live')}>
                   Use Live
                 </Button>
+
+                {/* LLM Model Selection Controls */}
+                <Group align="center" gap="md" wrap="nowrap">
+                  <Text size="sm" fw={600} c="dimmed">LLM Models:</Text>
+
+                  {/* LMStudio (Local) */}
+                  <Group align="center" gap="xs" wrap="nowrap">
+                    <Checkbox
+                      size="sm"
+                      checked={lmstudioEnabled}
+                      onChange={(event) => toggleLMStudio(event.currentTarget.checked)}
+                    />
+                    <Text size="sm">LMStudio</Text>
+                    <Badge size="xs" color="green" variant="filled">Local</Badge>
+                  </Group>
+
+                  <Divider orientation="vertical" />
+
+                  {/* Claude (Premium) */}
+                  <Group align="center" gap="xs" wrap="nowrap">
+                    <Checkbox
+                      size="sm"
+                      checked={claudeEnabled}
+                      onChange={(event) => toggleClaude(event.currentTarget.checked)}
+                    />
+                    <Text size="sm">Claude</Text>
+                    <Badge size="xs" color="orange" variant="filled">Premium</Badge>
+                  </Group>
+
+                  {/* Gemini (Premium) */}
+                  <Group align="center" gap="xs" wrap="nowrap">
+                    <Checkbox
+                      size="sm"
+                      checked={geminiEnabled}
+                      onChange={(event) => toggleGemini(event.currentTarget.checked)}
+                    />
+                    <Text size="sm">Gemini</Text>
+                    <Badge size="xs" color="blue" variant="filled">Premium</Badge>
+                  </Group>
+                </Group>
+
+                {/* Session Timer (when any premium model is enabled) */}
+                {(claudeEnabled || geminiEnabled) && sessionStatus?.premium_session_active && (
+                  <Group align="center" gap="xs" wrap="nowrap">
+                    <Tooltip
+                      label={`Auto-shutdown in ${sessionStatus.remaining_time_minutes} min to prevent runaway costs`}
+                      position="bottom"
+                    >
+                      <Badge
+                        size="sm"
+                        color={sessionStatus.remaining_time_minutes < 5 ? "red" : "yellow"}
+                        variant="filled"
+                        style={{ cursor: 'help' }}
+                      >
+                        🛡️ {Math.floor(sessionStatus.remaining_time_minutes)}m
+                      </Badge>
+                    </Tooltip>
+
+                    <Tooltip label="Extend session by 30 minutes" position="bottom">
+                      <Button
+                        size="xs"
+                        variant="light"
+                        color="orange"
+                        onClick={() => extendSession(30)}
+                      >
+                        +30m
+                      </Button>
+                    </Tooltip>
+
+                    <Tooltip label="Stop premium models now" position="bottom">
+                      <Button
+                        size="xs"
+                        variant="light"
+                        color="red"
+                        onClick={forceShutdownPremium}
+                      >
+                        Stop
+                      </Button>
+                    </Tooltip>
+                  </Group>
+                )}
+
                 {dataSource==='Live' && (
                   <span style={{marginLeft:8, padding:'4px 10px', borderRadius:14, fontSize:14, fontWeight:800,
                                 background: liveConnected? '#2e7d32':'#c62828', color:'#fff'}}>
                     {liveConnected? `Live: ${liveCount}` : 'Live: disconnected'}
                   </span>
+                )}
+
+                {/* Model Status Display */}
+                {usageStats && (
+                  <Group align="center" gap="xs" wrap="nowrap">
+                    <Text size="xs" c="dimmed">
+                      Calls: {Object.values(usageStats.usage_stats || {}).reduce((a: number, b: number) => a + b, 0)}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Cost: ${Object.values(usageStats.cost_tracking || {}).reduce((a: number, b: number) => a + b, 0).toFixed(3)}
+                    </Text>
+                  </Group>
                 )}
               </Group>
             </Group>

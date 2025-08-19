@@ -88,6 +88,10 @@ class TEPDataBridge:
         self.last_ingest_ok = False
         self.csv_rows = 0
         self.csv_bytes = 0
+
+        # Cost protection
+        self.last_auto_stop_check = 0
+        self.auto_stop_check_interval = 60  # Check every minute
         # Diagnostics
         self.last_error = ""
         self.last_ingest_info = {}
@@ -310,6 +314,15 @@ class TEPDataBridge:
 
                     self.current_step += 1
 
+                # Check for auto-shutdown signal (cost protection)
+                current_time = time.time()
+                if current_time - self.last_auto_stop_check > self.auto_stop_check_interval:
+                    self.last_auto_stop_check = current_time
+                    if self.check_auto_shutdown_signal():
+                        print("🛡️ AUTO-SHUTDOWN: Premium model session expired - stopping simulation")
+                        self.tep_running = False
+                        break
+
                 # Wait for next step (demo or real-time)
                 print("💤 Sleeping for next step...")
                 time.sleep(self.step_interval_seconds)
@@ -320,6 +333,21 @@ class TEPDataBridge:
                 time.sleep(10)
 
         print("🛑 TEP simulation loop stopped")
+
+    def check_auto_shutdown_signal(self):
+        """Check if backend has signaled for auto-shutdown due to cost protection"""
+        try:
+            response = requests.get("http://localhost:8000/simulation/auto_stop_status", timeout=5)
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('auto_stopped', False):
+                    # Reset the flag so it doesn't trigger again
+                    requests.post("http://localhost:8000/simulation/reset_auto_stop", timeout=5)
+                    return True
+            return False
+        except Exception as e:
+            print(f"⚠️ Could not check auto-shutdown status: {e}")
+            return False
 
     def start_tep_simulation(self):
         """Start TEP simulation."""
@@ -892,6 +920,26 @@ class UnifiedControlPanel:
             self.bridge.stop_tep_simulation()
             self.bridge.stop_all_processes()
             return jsonify({'success': True, 'message': 'All processes stopped'})
+
+        # Model control proxy endpoints
+        @self.app.route('/api/models/status', methods=['GET'])
+        def proxy_models_status():
+            try:
+                import requests
+                r = requests.get('http://localhost:8000/models/status', timeout=10)
+                return jsonify(r.json()), r.status_code
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/models/toggle', methods=['POST'])
+        def proxy_models_toggle():
+            try:
+                payload = request.get_json() or {}
+                import requests
+                r = requests.post('http://localhost:8000/models/toggle', json=payload, timeout=10)
+                return jsonify(r.json()), r.status_code
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
 
     def run(self, host='0.0.0.0', port=9001, debug=False):
         """Run the control panel.

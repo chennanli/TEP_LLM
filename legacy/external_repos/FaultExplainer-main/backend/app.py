@@ -29,9 +29,15 @@ def load_config(file_path):
     if "models" not in config:
         raise ValueError("Missing 'models' configuration")
 
+    # Check enabled models in both 'models' section and 'lmstudio' section
     enabled_models = [name for name, cfg in config["models"].items() if cfg.get("enabled", False)]
+
+    # Also check LMStudio
+    if config.get("lmstudio", {}).get("enabled", False):
+        enabled_models.append("lmstudio")
+
     if not enabled_models:
-        raise ValueError("At least one model must be enabled")
+        raise ValueError("At least one model must be enabled (check 'models' section and 'lmstudio' configuration)")
 
     # Validate fault_trigger_consecutive_step
     if not isinstance(config["fault_trigger_consecutive_step"], int) or config["fault_trigger_consecutive_step"] < 1:
@@ -67,6 +73,18 @@ try:
 
     print("✅ Config loaded and Multi-LLM client initialized")
     print(f"📊 Enabled models: {multi_llm_client.enabled_models}")
+
+    # Register shutdown callback to stop simulation when premium models auto-shutdown
+    def simulation_shutdown_callback():
+        """Callback to stop simulation when premium models are auto-disabled"""
+        global _simulation_auto_stopped
+        _simulation_auto_stopped = True
+        logger.warning("🛡️ TEP simulation auto-stopped due to premium model shutdown")
+        # Note: The actual simulation stopping will be handled by the unified control panel
+        # This just sets a flag that can be checked via API
+
+    multi_llm_client.register_shutdown_callback(simulation_shutdown_callback)
+
 except Exception as e:
     print("❌ Error loading config:", e)
     raise
@@ -116,6 +134,9 @@ llm_min_interval_seconds = int(config.get("llm_min_interval_seconds", 60))
 # Feature-shift retrigger controls
 feature_shift_jaccard_threshold = float(config.get("feature_shift_jaccard_threshold", 0.6))
 feature_shift_min_interval_seconds = int(config.get("feature_shift_min_interval_seconds", 120))
+
+# Cost protection state
+_simulation_auto_stopped = False
 
 _consecutive_anomalies = 0
 _last_analysis_result: Optional[Dict[str, Any]] = None
@@ -711,6 +732,120 @@ def last_analysis():
         return {"status": "none"}
     return _last_analysis_result
 
+# === Model Control Endpoints ===
+
+@app.post("/models/toggle")
+async def toggle_model(payload: dict):
+    """Toggle a model on/off at runtime"""
+    try:
+        model_name = payload.get("model_name")
+        enabled = payload.get("enabled", False)
+
+        if not model_name:
+            raise HTTPException(status_code=400, detail="model_name is required")
+
+        result = multi_llm_client.toggle_model(model_name, enabled)
+
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        return result
+
+    except Exception as e:
+        logger.exception("Model toggle error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/models/status")
+def get_model_status():
+    """Get detailed status of all models"""
+    try:
+        return multi_llm_client.get_model_status()
+    except Exception as e:
+        logger.exception("Model status error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/models/reset_usage")
+def reset_usage_stats():
+    """Reset usage statistics"""
+    try:
+        return multi_llm_client.reset_usage_stats()
+    except Exception as e:
+        logger.exception("Reset usage error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+# === Cost Protection Endpoints ===
+
+@app.get("/session/status")
+def get_session_status():
+    """Get current premium session status and remaining time"""
+    try:
+        return multi_llm_client.get_session_status()
+    except Exception as e:
+        logger.exception("Session status error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/session/extend")
+async def extend_session(payload: dict):
+    """Extend premium session by additional minutes"""
+    try:
+        additional_minutes = payload.get("additional_minutes", 30)
+        result = multi_llm_client.extend_premium_session(additional_minutes)
+
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        return result
+
+    except Exception as e:
+        logger.exception("Session extend error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/session/shutdown")
+def force_shutdown_premium():
+    """Manually force shutdown of premium models"""
+    try:
+        return multi_llm_client.force_shutdown_premium()
+    except Exception as e:
+        logger.exception("Force shutdown error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/session/cancel_auto_shutdown")
+def cancel_auto_shutdown():
+    """Cancel the auto-shutdown timer"""
+    try:
+        multi_llm_client.cancel_auto_shutdown()
+        return {"success": True, "message": "Auto-shutdown cancelled"}
+    except Exception as e:
+        logger.exception("Cancel auto-shutdown error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/session/set_auto_shutdown")
+async def set_auto_shutdown(payload: dict):
+    """Enable or disable auto-shutdown feature"""
+    try:
+        enabled = payload.get("enabled", True)
+        multi_llm_client.set_auto_shutdown_enabled(enabled)
+        return {"success": True, "auto_shutdown_enabled": enabled}
+    except Exception as e:
+        logger.exception("Set auto-shutdown error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/simulation/auto_stop_status")
+def get_simulation_auto_stop_status():
+    """Check if simulation should be auto-stopped due to cost protection"""
+    global _simulation_auto_stopped
+    return {
+        "auto_stopped": _simulation_auto_stopped,
+        "message": "Simulation auto-stopped due to premium model shutdown" if _simulation_auto_stopped else "Simulation running normally"
+    }
+
+@app.post("/simulation/reset_auto_stop")
+def reset_simulation_auto_stop():
+    """Reset the simulation auto-stop flag"""
+    global _simulation_auto_stopped
+    _simulation_auto_stopped = False
+    return {"success": True, "message": "Auto-stop flag reset"}
+
 
     # Combine all results into a single string
     return "The top feature changes are\n" + "\n".join(comparison_results)
@@ -768,10 +903,25 @@ async def explain(request: ExplainationRequest):
 
         logger.info("feature comparison prepared")
 
-        # Get analysis from all enabled models
+        # Extract fault features for RAG enhancement
+        fault_features = []
+        fault_data = {"file": request.file, "id": request.id}
+
+        # Try to extract feature names from the comparison result
+        try:
+            # Simple extraction of feature names from comparison text
+            import re
+            feature_matches = re.findall(r'Feature:\s*([^,\n]+)', comparison_result)
+            fault_features = [f.strip() for f in feature_matches[:6]]  # Top 6 features
+        except Exception as e:
+            logger.warning(f"Could not extract fault features: {str(e)}")
+
+        # Get analysis from all enabled models with RAG enhancement
         llm_results = await multi_llm_client.get_analysis_from_all_models(
             system_message=SYSTEM_MESSAGE,
-            user_prompt=user_prompt
+            user_prompt=user_prompt,
+            fault_features=fault_features,
+            fault_data=fault_data
         )
 
         # Format comparative results
@@ -798,6 +948,39 @@ async def send_message(request: MessageRequest):
             media_type="text/event-stream",
         )
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# RAG Knowledge Base Management Endpoints
+
+@app.post("/rag/initialize")
+async def initialize_rag_knowledge_base(force_reindex: bool = False):
+    """Initialize or update the RAG knowledge base"""
+    try:
+        result = multi_llm_client.initialize_knowledge_base(force_reindex=force_reindex)
+        return result
+    except Exception as e:
+        logger.exception("RAG initialization error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/rag/status")
+async def get_rag_status():
+    """Get RAG system status and statistics"""
+    try:
+        status = multi_llm_client.get_rag_status()
+        return status
+    except Exception as e:
+        logger.exception("RAG status error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/rag/search")
+async def search_knowledge_base(query: str, n_results: int = 5):
+    """Search the knowledge base for relevant information"""
+    try:
+        results = multi_llm_client.search_knowledge_base(query, n_results=n_results)
+        return results
+    except Exception as e:
+        logger.exception("RAG search error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

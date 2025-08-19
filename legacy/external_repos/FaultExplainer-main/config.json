@@ -1,0 +1,50 @@
+{
+  "prompt": "explain",
+  "fault_trigger_consecutive_step": 2,
+  "topkfeatures": 6,
+  "pca_window_size": 20,
+  "decimation_N": 1,
+  "llm_min_interval_seconds": 30,
+  "anomaly_threshold": 0.01,
+  "models": {
+    "anthropic": {
+      "api_key": "YOUR_ANTHROPIC_API_KEY_HERE",
+      "model_name": "claude-3-5-sonnet-20241022",
+      "enabled": false,
+      "premium": true,
+      "description": "High-quality analysis with API costs"
+    },
+    "gemini": {
+      "api_key": "YOUR_GEMINI_API_KEY_HERE",
+      "model_name": "gemini-1.5-pro",
+      "enabled": true,
+      "premium": true,
+      "description": "Alternative premium analysis option"
+    }
+  },
+  "analysis": {
+    "threshold": 0.01,
+    "window_size": 100,
+    "min_samples": 10,
+    "pca_components": 10
+  },
+  "lmstudio": {
+    "enabled": true,
+    "base_url": "http://localhost:1234/v1",
+    "model_name": "mistralai_mistral-small-3.1-24b-instruct-2503",
+    "api_key": "not-needed",
+    "premium": false,
+    "description": "Local model - no API costs"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "llm_analysis.log"
+  },
+  "cost_protection": {
+    "enabled": true,
+    "premium_session_duration_minutes": 30,
+    "auto_shutdown_simulation": true,
+    "warning_threshold_minutes": 5,
+    "description": "Automatic shutdown after 30 minutes to prevent runaway costs"
+  }
+}

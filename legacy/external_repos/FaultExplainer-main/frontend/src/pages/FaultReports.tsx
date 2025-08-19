@@ -44,6 +44,8 @@ export default function HistoryPage() {
       />
 
       <Space h="xl" />
+      {/* Fault History Accordion - Hidden to reduce clutter */}
+      {/*
       <Accordion variant="separated">
         {conversation.map(
           (msg) =>
@@ -77,11 +79,11 @@ export default function HistoryPage() {
                     )}
                   </Card>
                 </Accordion.Panel>
-                {/* {idx}:{msg.explanation.toString()} */}
               </Accordion.Item>
             )
         )}
       </Accordion>
+      */}
     </ScrollArea>
   );
 }

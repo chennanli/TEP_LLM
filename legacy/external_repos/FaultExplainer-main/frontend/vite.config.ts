@@ -8,5 +8,13 @@ export default defineConfig({
     headers: {
       "Cache-Control": "no-store",
     },
+    proxy: {
+      // Proxy API calls to unified control panel
+      '/api': {
+        target: 'http://localhost:9001',
+        changeOrigin: true,
+        secure: false,
+      }
+    },
   },
 });
