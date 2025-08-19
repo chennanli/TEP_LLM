@@ -750,6 +750,37 @@ function setDemoInterval(sec) {
     .catch(function(e) { showMessage('Failed to set interval: ' + e, 'error'); });
 }
 
+// New speed factor control function
+function setSpeedFactor(factor) {
+    console.log('setSpeedFactor() called with:', factor);
+    var speedFactor = parseFloat(factor);
+
+    // Update display
+    var label = document.getElementById('speed-factor');
+    if (label) {
+        var description = speedFactor < 1.0 ? (speedFactor + 'x (Slower)') :
+                         speedFactor === 1.0 ? '1.0x (Normal)' :
+                         speedFactor + 'x (Faster)';
+        label.textContent = description;
+    }
+
+    // Send to backend (will need new API endpoint)
+    fetch('/api/speed/factor', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({speed_factor: speedFactor})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        console.log('setSpeedFactor response:', d);
+        showMessage('Speed factor set to ' + speedFactor + 'x', 'success');
+    })
+    .catch(function(e) {
+        console.error('setSpeedFactor error:', e);
+        showMessage('Failed to set speed factor: ' + e, 'error');
+    });
+}
+
 function setPreset(mode) {
     console.log('setPreset() called with mode:', mode);
     var demo = {
@@ -836,7 +867,7 @@ function setIngestion(mode) {
 function setIDV(idvNum, value) {
     console.log('setIDV() called with:', idvNum, value);
     var valueSpan = document.getElementById('idv' + idvNum + '-value');
-    if (valueSpan) valueSpan.textContent = parseFloat(value).toFixed(1);
+    if (valueSpan) valueSpan.textContent = parseFloat(value).toFixed(2);
 
     fetch('/api/idv/set', {
         method: 'POST',

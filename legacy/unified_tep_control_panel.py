@@ -78,6 +78,7 @@ class TEPDataBridge:
         self.step_interval_seconds = 180
         self.speed_mode = 'real'  # 'demo' or 'real'
         self.current_preset = None  # 'demo' or 'real'
+        self.speed_factor = 1.0  # New: speed multiplier (0.1x to 10x)
 
         # Process management
         self.processes = {}
@@ -623,6 +624,7 @@ class TEPDataBridge:
             'step_interval_seconds': self.step_interval_seconds,
             'speed_mode': self.speed_mode,
             'current_preset': self.current_preset,
+            'speed_factor': getattr(self, 'speed_factor', 1.0),
             'raw_data_points': len(self.raw_data_queue),
             'pca_data_points': len(self.pca_data_queue),
             'llm_data_points': len(self.llm_data_queue),
@@ -704,6 +706,42 @@ class UnifiedControlPanel:
                 self.bridge.step_interval_seconds = 180
                 self.bridge.speed_mode = 'real'
             return jsonify({'success': True, 'mode': self.bridge.speed_mode, 'step_interval_seconds': self.bridge.step_interval_seconds})
+
+        @self.app.route('/api/speed/factor', methods=['POST'])
+        def set_speed_factor():
+            """New API endpoint for speed factor control (0.1x to 10x)"""
+            try:
+                data = request.get_json() or {}
+                speed_factor = float(data.get('speed_factor', 1.0))
+
+                # Validate range
+                speed_factor = max(0.1, min(10.0, speed_factor))
+
+                # Store speed factor for future TEP simulation implementation
+                self.bridge.speed_factor = speed_factor
+
+                # For now, convert to step interval for compatibility
+                # Normal speed (1.0x) = 180s, faster = shorter interval
+                base_interval = 180  # 3 minutes normal
+                new_interval = max(1, int(base_interval / speed_factor))
+                self.bridge.step_interval_seconds = new_interval
+
+                # Update mode based on speed
+                if speed_factor >= 1.0:
+                    self.bridge.speed_mode = f'fast_{speed_factor}x'
+                else:
+                    self.bridge.speed_mode = f'slow_{speed_factor}x'
+
+                return jsonify({
+                    'success': True,
+                    'speed_factor': speed_factor,
+                    'step_interval_seconds': new_interval,
+                    'mode': self.bridge.speed_mode,
+                    'description': f'Simulation running at {speed_factor}x speed'
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 400
 
         @self.app.route('/api/idv/set', methods=['POST'])
         def set_idv():
@@ -986,8 +1024,24 @@ CONTROL_PANEL_HTML = '''
         .status-card { padding: 15px; border-radius: 8px; text-align: center; }
         .status-running { background: #e8f5e8; border: 2px solid #4CAF50; }
         .status-stopped { background: #ffeaea; border: 2px solid #f44336; }
-        .idv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .idv-control { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .idv-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .idv-control {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: white;
+            font-size: 12px;
+        }
         .slider { width: 100%; margin: 8px 0; }
         .data-flow { background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 10px 0; }
         .timing-info { background: #1976d2; color: white; padding: 10px; border-radius: 5px; font-size: 14px; font-weight: bold; }
@@ -1166,12 +1220,13 @@ CONTROL_PANEL_HTML = '''
                     <button class="btn btn-success" onclick="startTEP()">▶️ Start TEP Simulation</button>
                     <button class="btn btn-danger" onclick="stopTEP()">⏹️ Stop TEP Simulation</button>
                         <div style="margin-top:10px;">
-                            <span>Speed:</span>
-                            <button id="btn-speed-demo" class="btn" onclick="setSpeed('demo')">Demo (1s)</button>
-                            <button id="btn-speed-real" class="btn" onclick="setSpeed('real')">Real (3min)</button>
+                            <span>Simulation Speed:</span>
                             <div style="margin-top:8px">
-                                <label>Demo interval: <span id="demo-interval">1</span>s</label>
-                                <input type="range" min="1" max="10" step="1" value="1" class="slider" id="demo-interval-slider" onchange="setDemoInterval(this.value)">
+                                <label>Speed Factor: <span id="speed-factor">1.0</span>x (Normal)</label>
+                                <input type="range" min="0.1" max="10" step="0.1" value="1.0" class="slider" id="speed-factor-slider" onchange="setSpeedFactor(this.value)">
+                                <div style="font-size:12px; color:#666; margin-top:4px;">
+                                    0.1x = 10x slower | 1.0x = Normal | 10x = 10x faster
+                                </div>
                             </div>
                         </div>
                         <div style="margin-top:10px;">
@@ -1291,42 +1346,151 @@ CONTROL_PANEL_HTML = '''
 
         <!-- IDV Fault Controls -->
         <div class="section">
-            <h3>🔧 Fault Injection (IDV Controls)</h3>
-            <p><span class="correct-badge">CORRECTED</span> Range: 0.0 to 1.0 (standard TEP values)</p>
+            <h3>🔧 Fault Injection (IDV Controls) - All 20 Variables</h3>
+            <p><span class="correct-badge">COMPLETE</span> Range: 0.0 to 1.0 (standard TEP values)</p>
             <div class="idv-grid">
+                <!-- IDV 1-5: Feed Disturbances -->
                 <div class="idv-control">
-                    <label><strong>IDV_1:</strong> A/C Feed Ratio</label>
-                    <input type="range" class="slider" min="0" max="1" step="0.1" value="0"
+                    <label><strong>IDV_1:</strong> A/C Feed Ratio, B Composition Constant</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
                            onchange="setIDV(1, this.value)" id="idv1">
-                    <div>Value: <span id="idv1-value">0.0</span></div>
+                    <div>Value: <span id="idv1-value">0.00</span></div>
                 </div>
 
                 <div class="idv-control">
-                    <label><strong>IDV_4:</strong> Reactor Cooling</label>
-                    <input type="range" class="slider" min="0" max="1" step="0.1" value="0"
+                    <label><strong>IDV_2:</strong> B Composition, A/C Ratio Constant</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(2, this.value)" id="idv2">
+                    <div>Value: <span id="idv2-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_3:</strong> D Feed Temperature (Stream 2)</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(3, this.value)" id="idv3">
+                    <div>Value: <span id="idv3-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_4:</strong> Reactor Cooling Water Inlet Temperature</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
                            onchange="setIDV(4, this.value)" id="idv4">
-                    <div>Value: <span id="idv4-value">0.0</span></div>
+                    <div>Value: <span id="idv4-value">0.00</span></div>
                 </div>
 
                 <div class="idv-control">
-                    <label><strong>IDV_6:</strong> A Feed Loss</label>
-                    <input type="range" class="slider" min="0" max="1" step="0.1" value="0"
+                    <label><strong>IDV_5:</strong> Condenser Cooling Water Inlet Temperature</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(5, this.value)" id="idv5">
+                    <div>Value: <span id="idv5-value">0.00</span></div>
+                </div>
+
+                <!-- IDV 6-10: Equipment Failures -->
+                <div class="idv-control">
+                    <label><strong>IDV_6:</strong> A Feed Loss (Stream 1)</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
                            onchange="setIDV(6, this.value)" id="idv6">
-                    <div>Value: <span id="idv6-value">0.0</span></div>
+                    <div>Value: <span id="idv6-value">0.00</span></div>
                 </div>
 
                 <div class="idv-control">
-                    <label><strong>IDV_8:</strong> A,B,C Composition</label>
-                    <input type="range" class="slider" min="0" max="1" step="0.1" value="0"
+                    <label><strong>IDV_7:</strong> C Header Pressure Loss (Stream 4)</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(7, this.value)" id="idv7">
+                    <div>Value: <span id="idv7-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_8:</strong> A, B, C Feed Composition Random Variation</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
                            onchange="setIDV(8, this.value)" id="idv8">
-                    <div>Value: <span id="idv8-value">0.0</span></div>
+                    <div>Value: <span id="idv8-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_9:</strong> D Feed Temperature Random Variation</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(9, this.value)" id="idv9">
+                    <div>Value: <span id="idv9-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_10:</strong> C Feed Temperature Random Variation</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(10, this.value)" id="idv10">
+                    <div>Value: <span id="idv10-value">0.00</span></div>
+                </div>
+
+                <!-- IDV 11-15: Cooling System Disturbances -->
+                <div class="idv-control">
+                    <label><strong>IDV_11:</strong> Reactor Cooling Water Inlet Temp Random</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(11, this.value)" id="idv11">
+                    <div>Value: <span id="idv11-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_12:</strong> Condenser Cooling Water Inlet Temp Random</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(12, this.value)" id="idv12">
+                    <div>Value: <span id="idv12-value">0.00</span></div>
                 </div>
 
                 <div class="idv-control">
                     <label><strong>IDV_13:</strong> Reaction Kinetics</label>
-                    <input type="range" class="slider" min="0" max="1" step="0.1" value="0"
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
                            onchange="setIDV(13, this.value)" id="idv13">
-                    <div>Value: <span id="idv13-value">0.0</span></div>
+                    <div>Value: <span id="idv13-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_14:</strong> Reactor Cooling Water Valve</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(14, this.value)" id="idv14">
+                    <div>Value: <span id="idv14-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_15:</strong> Condenser Cooling Water Valve</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(15, this.value)" id="idv15">
+                    <div>Value: <span id="idv15-value">0.00</span></div>
+                </div>
+
+                <!-- IDV 16-20: Additional Disturbances -->
+                <div class="idv-control">
+                    <label><strong>IDV_16:</strong> Unknown</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(16, this.value)" id="idv16">
+                    <div>Value: <span id="idv16-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_17:</strong> Unknown</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(17, this.value)" id="idv17">
+                    <div>Value: <span id="idv17-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_18:</strong> Unknown</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(18, this.value)" id="idv18">
+                    <div>Value: <span id="idv18-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_19:</strong> Unknown</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(19, this.value)" id="idv19">
+                    <div>Value: <span id="idv19-value">0.00</span></div>
+                </div>
+
+                <div class="idv-control">
+                    <label><strong>IDV_20:</strong> Unknown</label>
+                    <input type="range" class="slider" min="0" max="1" step="0.01" value="0"
+                           onchange="setIDV(20, this.value)" id="idv20">
+                    <div>Value: <span id="idv20-value">0.00</span></div>
                 </div>
             </div>
         </div>
