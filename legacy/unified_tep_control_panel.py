@@ -210,7 +210,8 @@ class TEPDataBridge:
             idv_matrix = _np2.array(list(self.idv_history)).reshape(-1, 20)
 
             # Run TEP simulation for the whole history and take the latest row
-            tep_sim = self.tep2py.tep2py(idv_matrix)
+            # Pass speed factor to enable actual physics speed control
+            tep_sim = self.tep2py.tep2py(idv_matrix, speed_factor=self.speed_factor)
             tep_sim.simulate()
 
             if hasattr(tep_sim, 'process_data'):
@@ -736,12 +737,12 @@ class UnifiedControlPanel:
                 # Validate range
                 speed_factor = max(0.1, min(10.0, speed_factor))
 
-                # Store speed factor for future TEP simulation implementation
+                # Store speed factor for TEP simulation (now implemented in Fortran!)
                 self.bridge.speed_factor = speed_factor
 
-                # ⚠️ LIMITATION: Currently only affects Python loop timing, not Fortran physics
-                # TODO: Implement DELTAT scaling in Fortran module for true speed control
-                # For now, convert to step interval for compatibility
+                # ✅ IMPLEMENTED: Speed factor now affects actual Fortran physics simulation
+                # The speed factor is passed to temain_with_speed() which scales DELTAT
+                # Also adjust Python loop timing for consistency
                 base_interval = 180  # 3 minutes normal
                 new_interval = max(1, int(base_interval / speed_factor))
                 self.bridge.step_interval_seconds = new_interval
@@ -1349,8 +1350,8 @@ CONTROL_PANEL_HTML = '''
                                 <div style="font-size:12px; color:#666; margin-top:4px;">
                                     0.1x = 10x slower | 1.0x = Normal | 10x = 10x faster
                                 </div>
-                                <div style="font-size:11px; color:#ff6600; margin-top:6px; padding:4px; background:#fff3e0; border-radius:4px;">
-                                    ⚠️ <strong>Limitation:</strong> Speed control affects data collection timing only, not Fortran physics simulation speed
+                                <div style="font-size:11px; color:#4caf50; margin-top:6px; padding:4px; background:#e8f5e8; border-radius:4px;">
+                                    ✅ <strong>Speed Control Active:</strong> Affects actual Fortran physics simulation speed via DELTAT scaling
                                 </div>
                             </div>
                         </div>

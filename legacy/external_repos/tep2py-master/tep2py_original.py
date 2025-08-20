@@ -39,15 +39,12 @@ import temain_mod
 
 class tep2py():
 
-    def __init__(self, idata, speed_factor=1.0):
+    def __init__(self, idata):
         if idata.shape[1] == 20:
             self.disturbance_matrix = idata
         else:
             raise ValueError('Matrix of disturbances do not have the appropriate dimension.'
                 'It must be shape[1]==20')
-
-        # Store speed factor (0.1 to 10.0)
-        self.speed_factor = max(0.1, min(10.0, float(speed_factor)))
 
         self._build_var_table()
         self._build_disturbance_table()
@@ -67,26 +64,13 @@ class tep2py():
         """
         idata = self.disturbance_matrix
 
-        # Use speed-enabled TEP simulation
-        if hasattr(temain_mod, 'temain_with_speed'):
-            # Use new speed-enabled function
-            xdata = temain_mod.temain_with_speed(
-               np.asarray(60*3*idata.shape[0], dtype=int),
-               idata.shape[0],
-               idata,
-               int(1),  # verbose flag
-               float(self.speed_factor)  # speed factor
-            )
-            print(f"🚀 TEP simulation with speed factor {self.speed_factor}x")
-        else:
-            # Fallback to original function
-            xdata = temain_mod.temain(
-               np.asarray(60*3*idata.shape[0], dtype=int),
-               idata.shape[0],
-               idata,
-               int(1)
-            )
-            print("⚠️ Using original TEP simulation (no speed control)")
+        # simulated TEP data
+        xdata = temain_mod.temain(
+           np.asarray(60*3*idata.shape[0], dtype=int),
+           idata.shape[0],
+           idata,
+          int(1)
+          )
 
         # column names
         names = ( 
@@ -101,20 +85,6 @@ class tep2py():
 
         self.process_data = xdata
 
-    def set_speed_factor(self, speed_factor):
-        """
-        Set simulation speed factor.
-
-        Parameters
-        ----------
-        speed_factor : float
-            Speed multiplier (0.1 to 10.0)
-            1.0 = Normal speed
-            10.0 = 10x faster
-            0.1 = 10x slower
-        """
-        self.speed_factor = max(0.1, min(10.0, float(speed_factor)))
-        print(f"🎛️ Speed factor set to {self.speed_factor}x")
 
     def _build_var_table(self):
         
