@@ -864,6 +864,40 @@ function setIngestion(mode) {
     }
 }
 
+function setXMV(xmvNum, value) {
+    console.log('setXMV() called with:', xmvNum, value);
+    var floatValue = parseFloat(value);  // Convert to float (0.0-100.0)
+    var valueSpan = document.getElementById('xmv' + xmvNum + '-value');
+    if (valueSpan) valueSpan.textContent = floatValue.toFixed(1);
+
+    fetch('/api/xmv/set', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            xmv_num: xmvNum,
+            value: floatValue
+        })
+    })
+    .then(function(response) {
+        return response.json();
+    })
+    .then(function(data) {
+        console.log('XMV set response:', data);
+        if (!data.success) {
+            console.error('Failed to set XMV:', data.message);
+            showMessage('Failed to set XMV_' + xmvNum + ': ' + data.message, 'error');
+        } else {
+            console.log('XMV_' + xmvNum + ' set to ' + floatValue + '%');
+        }
+    })
+    .catch(function(error) {
+        console.error('Error setting XMV:', error);
+        showMessage('Error setting XMV_' + xmvNum + ': ' + error.message, 'error');
+    });
+}
+
 function setIDV(idvNum, value) {
     console.log('setIDV() called with:', idvNum, value);
     var intValue = parseInt(value);  // Convert to integer (0 or 1)

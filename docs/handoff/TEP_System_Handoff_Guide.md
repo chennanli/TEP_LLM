@@ -4,7 +4,7 @@
 
 This document provides essential context for anyone (human developer or AI assistant) taking over the TEP (Tennessee Eastman Process) monitoring and fault analysis system.
 
-### **Current System State** (as of August 12, 2025)
+### **Current System State** (as of August 19, 2025)
 - ✅ **Fully functional** TEP monitoring with enhanced operational ranges
 - ✅ **Dual architecture**: Integration folder (production) + Legacy folders (reference)
 - ✅ **Multi-LLM support**: Claude, Gemini, LM Studio integration
@@ -13,6 +13,9 @@ This document provides essential context for anyone (human developer or AI assis
 - ✅ **Distribution ready**: Containerized deployment with comprehensive documentation
 - ✅ **Virtual environment**: Validated `tep_env` setup with all dependencies
 - ✅ **Safari compatible**: Tested JavaScript compatibility for Mac Safari browser
+- ✅ **Control system validated**: IDV/XMV distinction clarified, binary fault controls fixed
+- ✅ **Thermodynamic analysis**: Complete 4-reaction kinetic system documented
+- ✅ **Speed control limitation**: Python vs Fortran timing issue identified
 
 ## 📁 **Project Structure Overview**
 
@@ -239,7 +242,10 @@ npm start
 ## 📖 **Additional Resources**
 
 ### **Documentation Files**:
-- `docs/conversation-summaries/`: Detailed session logs and technical changes
+- `docs/conversations/`: Detailed session logs and technical changes
+  - `2025-08-19_TEP_Control_Thermodynamics_Analysis.md`: Complete control system & thermodynamic analysis
+  - `2025-01-19_TEP_Timing_Speed_Control_Analysis.md`: Speed control and timing system analysis
+- `docs/conversation-summaries/`: Legacy session documentation
 - `docs/distribution/Distribution_Readiness_Checklist.md`: Complete distribution guide
 - `docs/quick-reference/TEP_Ranges_Configuration.md`: Configuration reference
 - `docs/TEP_VARIABLES.md`: Complete variable documentation

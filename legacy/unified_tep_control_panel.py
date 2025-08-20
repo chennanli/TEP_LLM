@@ -183,6 +183,21 @@ class TEPDataBridge:
                 return True
         return False
 
+    def set_xmv(self, xmv_num, value):
+        """Set XMV value (1-12, continuous 0.0-100.0% as per original TEP paper)."""
+        if 1 <= xmv_num <= 12:
+            # Convert to float (0.0-100.0) as per original TEP specification
+            float_value = float(value)
+            if 0.0 <= float_value <= 100.0:
+                # Initialize XMV values if not exists
+                if not hasattr(self, 'xmv_values'):
+                    self.xmv_values = np.array([63.0, 53.0, 24.0, 61.0, 22.0, 40.0, 38.0, 46.0, 47.0, 41.0, 18.0, 50.0])
+
+                self.xmv_values[xmv_num - 1] = float_value
+                print(f"🎛️ Set XMV_{xmv_num} = {float_value:.1f}%")
+                return True
+        return False
+
     def run_tep_simulation_step(self):
         """Run one TEP simulation step (3 minutes)."""
         try:
@@ -748,6 +763,20 @@ class UnifiedControlPanel:
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 400
 
+        @self.app.route('/api/xmv/set', methods=['POST'])
+        def set_xmv():
+            data = request.get_json()
+            xmv_num = data.get('xmv_num')
+            value = data.get('value')
+
+            success = self.bridge.set_xmv(xmv_num, value)
+            return jsonify({
+                'success': success,
+                'xmv_num': xmv_num,
+                'value': float(value) if success else None,
+                'current_xmv_state': self.bridge.xmv_values.tolist() if hasattr(self.bridge, 'xmv_values') else None
+            })
+
         @self.app.route('/api/idv/set', methods=['POST'])
         def set_idv():
             data = request.get_json()
@@ -1070,6 +1099,59 @@ CONTROL_PANEL_HTML = '''
         .status-card { padding: 15px; border-radius: 8px; text-align: center; }
         .status-running { background: #e8f5e8; border: 2px solid #4CAF50; }
         .status-stopped { background: #ffeaea; border: 2px solid #f44336; }
+        .xmv-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .xmv-control {
+            padding: 12px;
+            border: 1px solid #007bff;
+            border-radius: 6px;
+            background-color: white;
+            font-size: 13px;
+        }
+        .xmv-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .idv-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .idv-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid #28a745;
+            border-radius: 4px;
+            background-color: white;
+            font-size: 13px;
+        }
+        .idv-checkbox input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .idv-checkbox label {
+            margin: 0;
+            cursor: pointer;
+            color: #28a745;
+        }
         .idv-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1226,22 +1308,23 @@ CONTROL_PANEL_HTML = '''
                     <p id="tep-status">Stopped</p>
                     <p>Step: <span id="tep-step">0</span></p>
                 </div>
-                    <p>Speed: <span id="speed-mode">Real (180s)</span></p>
-                    <p>Preset: <span id="preset-mode">None</span></p>
-
                 <div class="status-card status-stopped">
-                    <h4>🔍 FaultExplainer Backend</h4>
+                    <h4>🔍 Fault Analysis Backend</h4>
                     <p id="backend-status">Stopped</p>
                 </div>
                 <div class="status-card status-stopped">
-                    <h4>🖥️ FaultExplainer Frontend</h4>
+                    <h4>🖥️ Fault Analysis Frontend</h4>
                     <p id="frontend-status">Stopped</p>
                 </div>
-                <div class="status-card">
-                    <h4>📈 Data Points</h4>
-                    <p>Raw: <span id="raw-count">0</span></p>
-                    <p>Anomaly Detection: <span id="pca-count">0</span></p>
-                    <p>LLM: <span id="llm-count">0</span></p>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; padding: 0 20px;">
+                <p>Speed: <span id="speed-mode">Real (180s)</span></p>
+                <p>Preset: <span id="preset-mode">None</span></p>
+                <div>
+                    <h4 style="display: inline; margin-right: 20px;">📈 Data Points</h4>
+                    <span>Raw: <span id="raw-count">0</span> | </span>
+                    <span>Anomaly Detection: <span id="pca-count">0</span> | </span>
+                    <span>LLM: <span id="llm-count">0</span></span>
                 </div>
             </div>
         </div>
@@ -1249,15 +1332,7 @@ CONTROL_PANEL_HTML = '''
         <!-- Main Controls -->
         <div class="section">
             <h3>🎛️ Main Controls</h3>
-            <div class="control-card">
-                <h4>🔌 Ingestion Source</h4>
-                <p>Select one source for live data. CSV Bridge is only for external CSV producer.</p>
-                <div>
-                    <button id="btn-ingest-internal" class="btn btn-active" onclick="setIngestion('internal')">Internal Simulator</button>
-                    <button id="btn-ingest-csv" class="btn" onclick="setIngestion('csv')">CSV Bridge (optional)</button>
-                </div>
-                <p id="ingest-hint" style="font-size:12px;color:#666;">Using Internal Simulator. Bridge controls disabled.</p>
-            </div>
+
 
             <div class="controls-grid">
                 <div class="control-card">
@@ -1265,6 +1340,7 @@ CONTROL_PANEL_HTML = '''
                     <p>Real tep2py physics simulation with 3-minute intervals</p>
                     <button class="btn btn-success" onclick="startTEP()">▶️ Start TEP Simulation</button>
                     <button class="btn btn-danger" onclick="stopTEP()">⏹️ Stop TEP Simulation</button>
+                    <button class="btn btn-warning" onclick="restartTEP()">⟳ Restart TEP</button>
                         <div style="margin-top:10px;">
                             <span>Simulation Speed:</span>
                             <div style="margin-top:8px">
@@ -1273,90 +1349,81 @@ CONTROL_PANEL_HTML = '''
                                 <div style="font-size:12px; color:#666; margin-top:4px;">
                                     0.1x = 10x slower | 1.0x = Normal | 10x = 10x faster
                                 </div>
+                                <div style="font-size:11px; color:#ff6600; margin-top:6px; padding:4px; background:#fff3e0; border-radius:4px;">
+                                    ⚠️ <strong>Limitation:</strong> Speed control affects data collection timing only, not Fortran physics simulation speed
+                                </div>
                             </div>
                         </div>
-                        <div style="margin-top:10px;">
-                            <button id="btn-preset-demo" class="btn" onclick="setPreset('demo')">Set Backend Preset: Demo</button>
-                            <button id="btn-preset-balanced" class="btn" onclick="setPreset('balanced')">Set Backend Preset: Balanced</button>
-                            <button id="btn-preset-real" class="btn" onclick="setPreset('real')">Set Backend Preset: Realistic</button>
-                        </div>
-
                 </div>
 
                 <div class="control-card">
-                    <h4>🔍 FaultExplainer Backend</h4>
+                    <h4>🔍 Fault Analysis Backend</h4>
                     <p>Analysis engine with correct threshold (0.01)</p>
                     <button class="btn btn-primary" onclick="startBackend()">▶️ Start Backend</button>
-                        <div style="margin-top:6px">
-                            <button class="btn" onclick="checkBaselineStatus()">🔎 Check Baseline Status</button>
-                            <button class="btn btn-info" onclick="testBackendConnection()">🧪 Test Backend</button>
-                        </div>
-
                     <p style="font-size: 12px; color: #666;">Port: 8000</p>
-                        <div style="margin-top:6px">
-                            <button class="btn btn-warning" onclick="restartTEP()">⟳ Restart TEP</button>
-                        </div>
                         <div style="margin-top:8px">
                             <label>LLM min interval: <span id="llm-interval-label">20</span>s</label>
                             <input type="range" min="10" max="120" step="5" value="20" class="slider" id="llm-interval-slider" onchange="setLLMInterval(this.value)">
                         </div>
-
-                                <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
-                                    <label style="font-size:12px; color:#666">Select date</label>
-                                    <input type="date" id="history-date" class="btn" style="padding:6px;">
-                                    <button class="btn" onclick="downloadAnalysisByDate()">⬇ Download MD by date</button>
-                                </div>
-                                <p style="margin-top:6px; font-size:12px; color:#666">Logs auto-saved at backend/diagnostics/analysis_history/YYYY-MM-DD.md</p>
-
                         <div style="margin-top:6px">
                             <button id="btn-reload-baseline" class="btn" onclick="reloadBaseline()">⟳ Reload Baseline</button>
-                        </div>
-                        <div style="margin-top:6px">
                             <button id="btn-stability-defaults" class="btn" onclick="applyStabilityDefaults()">✔ Apply Stability Defaults</button>
                         </div>
-
-                            <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
-                                <label style="font-size:12px; color:#666">Show last</label>
-                                <select id="history-limit" class="btn">
-                                    <option>5</option>
-                                    <option>10</option>
-                                    <option>20</option>
-                                </select>
-                                <button class="btn" onclick="showAnalysisHistory()">🔄 Refresh</button>
-                                <button class="btn" onclick="downloadAnalysis('json')">⬇ Download JSON</button>
-                                <button class="btn" onclick="downloadAnalysis('md')">⬇ Download MD</button>
-                            </div>
-
-
-                            <div style="margin-top:6px">
-                                <button class="btn" onclick="showAnalysisHistory()">🕘 Show Last 5 Analyses</button>
-                            </div>
-
-
-
-
-
                 </div>
 
                 <div class="control-card">
-                    <h4>🖥️ FaultExplainer Frontend</h4>
+                    <h4>🖥️ Fault Analysis Frontend</h4>
                     <p>React interface for visualization and control</p>
-                <div class="control-card">
-                    <h4>🌉 TEP→FaultExplainer Bridge</h4>
-                    <p>Connect live CSV to backend /ingest</p>
-                    <button id="btn-bridge-start" class="btn" onclick="startBridge()">▶️ Start Bridge</button>
-                    <button class="btn btn-danger" onclick="stopBridge()">⏹️ Stop Bridge</button>
-                    <p style="font-size: 12px; color: #666;">Monitors: data/live_tep_data.csv</p>
-                </div>
-
                     <button class="btn btn-primary" onclick="startFrontend()">▶️ Start Frontend</button>
                     <p style="font-size: 12px; color: #666;">Port: 5173</p>
+                    <div style="margin-top:6px">
+                        <button id="btn-bridge-start" class="btn" onclick="startBridge()">▶️ Start Bridge</button>
+                        <button class="btn btn-danger" onclick="stopBridge()">⏹️ Stop Bridge</button>
+                        <p style="font-size: 12px; color: #666;">Monitors: data/live_tep_data.csv</p>
+                    </div>
                 </div>
+            </div>
 
+            <div class="controls-grid">
                 <div class="control-card">
                     <h4>🛑 Emergency Stop</h4>
                     <p>Stop all running processes</p>
                     <button class="btn btn-danger" onclick="stopAll()">🛑 Stop Everything</button>
+                </div>
+
+                <div class="control-card">
+                    <h4>📊 Data Analysis</h4>
+                    <p>Download and review analysis history</p>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
+                        <label style="font-size:12px; color:#666">Show last</label>
+                        <select id="history-limit" class="btn">
+                            <option>5</option>
+                            <option>10</option>
+                            <option>20</option>
+                        </select>
+                        <button class="btn" onclick="showAnalysisHistory()">🔄 Refresh</button>
+                    </div>
+                    <div style="margin-top:6px">
+                        <button class="btn" onclick="showAnalysisHistory()">🕘 Show Last 5 Analyses</button>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
+                        <label style="font-size:12px; color:#666">Select date</label>
+                        <input type="date" id="history-date" class="btn" style="padding:6px;">
+                        <button class="btn" onclick="downloadAnalysisByDate()">⬇ Download MD by date</button>
+                    </div>
+                    <p style="margin-top:6px; font-size:12px; color:#666">Logs auto-saved at backend/diagnostics/analysis_history/YYYY-MM-DD.md</p>
+                </div>
+
+                <div class="control-card">
+                    <h4>🔌 Data Source</h4>
+                    <p>Bridge controls CSV data flow to backend</p>
+                    <div style="margin-top:6px">
+                        <button id="btn-ingest-internal" class="btn btn-active" onclick="setIngestion('internal')">Internal Simulator</button>
+                    </div>
+                    <div style="margin-top:6px">
+                        <button id="btn-ingest-csv" class="btn" onclick="setIngestion('csv')">CSV Bridge (optional)</button>
+                    </div>
+                    <p id="ingest-hint" style="font-size:12px;color:#666;">Using Internal Simulator. Bridge controls disabled.</p>
                 </div>
             </div>
         </div>
@@ -1390,159 +1457,213 @@ CONTROL_PANEL_HTML = '''
             <p>✅ Proper timing hierarchy prevents LLM overload</p>
         </div>
 
+        <!-- XMV Process Controls -->
+        <div class="section">
+            <h3>🎛️ Process Controls (XMV Variables) - 12 Manipulated Variables</h3>
+            <p><span class="correct-badge">CONTINUOUS</span> Range: 0-100% - Valve positions and control setpoints</p>
+            <div class="xmv-grid">
+                <!-- Feed Flow Controls -->
+                <div class="xmv-control">
+                    <label><strong>XMV_1:</strong> D Feed Flow</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="63.0"
+                           onchange="setXMV(1, this.value)" id="xmv1">
+                    <div>Value: <span id="xmv1-value">63.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_2:</strong> E Feed Flow</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="53.0"
+                           onchange="setXMV(2, this.value)" id="xmv2">
+                    <div>Value: <span id="xmv2-value">53.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_3:</strong> A Feed Flow</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="24.0"
+                           onchange="setXMV(3, this.value)" id="xmv3">
+                    <div>Value: <span id="xmv3-value">24.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_4:</strong> A+C Feed Flow</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="61.0"
+                           onchange="setXMV(4, this.value)" id="xmv4">
+                    <div>Value: <span id="xmv4-value">61.0</span>%</div>
+                </div>
+
+                <!-- Process Control Valves -->
+                <div class="xmv-control">
+                    <label><strong>XMV_5:</strong> Compressor Recycle Valve</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="22.0"
+                           onchange="setXMV(5, this.value)" id="xmv5">
+                    <div>Value: <span id="xmv5-value">22.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_6:</strong> Purge Valve</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="40.0"
+                           onchange="setXMV(6, this.value)" id="xmv6">
+                    <div>Value: <span id="xmv6-value">40.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_7:</strong> Separator Liquid Flow</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="38.0"
+                           onchange="setXMV(7, this.value)" id="xmv7">
+                    <div>Value: <span id="xmv7-value">38.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_8:</strong> Stripper Liquid Flow</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="46.0"
+                           onchange="setXMV(8, this.value)" id="xmv8">
+                    <div>Value: <span id="xmv8-value">46.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_9:</strong> Stripper Steam Valve</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="47.0"
+                           onchange="setXMV(9, this.value)" id="xmv9">
+                    <div>Value: <span id="xmv9-value">47.0</span>%</div>
+                </div>
+
+                <!-- Cooling Controls -->
+                <div class="xmv-control">
+                    <label><strong>XMV_10:</strong> Reactor Cooling Water</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="41.0"
+                           onchange="setXMV(10, this.value)" id="xmv10">
+                    <div>Value: <span id="xmv10-value">41.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_11:</strong> Condenser Cooling Water</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="18.0"
+                           onchange="setXMV(11, this.value)" id="xmv11">
+                    <div>Value: <span id="xmv11-value">18.0</span>%</div>
+                </div>
+
+                <div class="xmv-control">
+                    <label><strong>XMV_12:</strong> Agitator Speed</label>
+                    <input type="range" class="slider" min="0" max="100" step="0.1" value="50.0"
+                           onchange="setXMV(12, this.value)" id="xmv12">
+                    <div>Value: <span id="xmv12-value">50.0</span>%</div>
+                </div>
+            </div>
+        </div>
+
         <!-- IDV Fault Controls -->
         <div class="section">
             <h3>🔧 Fault Injection (IDV Controls) - All 20 Variables</h3>
-            <p><span class="correct-badge">CORRECTED</span> Range: 0 (OFF) or 1 (ON) - Binary flags as per original TEP paper</p>
+            <p><span class="correct-badge">BINARY</span> Checkboxes: ☐ OFF or ☑ ON - Binary flags as per original TEP paper</p>
             <div style="margin: 10px 0;">
                 <button class="btn btn-warning" onclick="testIDVImpact()">🧪 Test IDV Impact</button>
                 <span style="margin-left: 10px; font-size: 12px; color: #666;">
                     Tests if IDV changes actually affect simulation output
                 </span>
             </div>
-            <div class="idv-grid">
+            <div class="idv-checkbox-grid">
                 <!-- IDV 1-5: Feed Disturbances -->
-                <div class="idv-control">
-                    <label><strong>IDV_1:</strong> A/C Feed Ratio, B Composition Constant</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(1, this.value)" id="idv1">
-                    <div>Status: <span id="idv1-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv1" onchange="setIDV(1, this.checked ? 1 : 0)">
+                    <label for="idv1"><strong>IDV_1:</strong> A/C Feed Ratio, B Composition Constant</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_2:</strong> B Composition, A/C Ratio Constant</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(2, this.value)" id="idv2">
-                    <div>Status: <span id="idv2-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv2" onchange="setIDV(2, this.checked ? 1 : 0)">
+                    <label for="idv2"><strong>IDV_2:</strong> B Composition, A/C Ratio Constant</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_3:</strong> D Feed Temperature (Stream 2)</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(3, this.value)" id="idv3">
-                    <div>Status: <span id="idv3-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv3" onchange="setIDV(3, this.checked ? 1 : 0)">
+                    <label for="idv3"><strong>IDV_3:</strong> D Feed Temperature (Stream 2)</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_4:</strong> Reactor Cooling Water Inlet Temperature</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(4, this.value)" id="idv4">
-                    <div>Status: <span id="idv4-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv4" onchange="setIDV(4, this.checked ? 1 : 0)">
+                    <label for="idv4"><strong>IDV_4:</strong> Reactor Cooling Water Inlet Temperature</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_5:</strong> Condenser Cooling Water Inlet Temperature</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(5, this.value)" id="idv5">
-                    <div>Status: <span id="idv5-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv5" onchange="setIDV(5, this.checked ? 1 : 0)">
+                    <label for="idv5"><strong>IDV_5:</strong> Condenser Cooling Water Inlet Temperature</label>
                 </div>
 
                 <!-- IDV 6-10: Equipment Failures -->
-                <div class="idv-control">
-                    <label><strong>IDV_6:</strong> A Feed Loss (Stream 1)</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(6, this.value)" id="idv6">
-                    <div>Status: <span id="idv6-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv6" onchange="setIDV(6, this.checked ? 1 : 0)">
+                    <label for="idv6"><strong>IDV_6:</strong> A Feed Loss (Stream 1)</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_7:</strong> C Header Pressure Loss (Stream 4)</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(7, this.value)" id="idv7">
-                    <div>Status: <span id="idv7-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv7" onchange="setIDV(7, this.checked ? 1 : 0)">
+                    <label for="idv7"><strong>IDV_7:</strong> C Header Pressure Loss (Stream 4)</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_8:</strong> A, B, C Feed Composition Random Variation</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(8, this.value)" id="idv8">
-                    <div>Status: <span id="idv8-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv8" onchange="setIDV(8, this.checked ? 1 : 0)">
+                    <label for="idv8"><strong>IDV_8:</strong> A, B, C Feed Composition Random Variation</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_9:</strong> D Feed Temperature Random Variation</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(9, this.value)" id="idv9">
-                    <div>Status: <span id="idv9-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv9" onchange="setIDV(9, this.checked ? 1 : 0)">
+                    <label for="idv9"><strong>IDV_9:</strong> D Feed Temperature Random Variation</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_10:</strong> C Feed Temperature Random Variation</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(10, this.value)" id="idv10">
-                    <div>Status: <span id="idv10-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv10" onchange="setIDV(10, this.checked ? 1 : 0)">
+                    <label for="idv10"><strong>IDV_10:</strong> C Feed Temperature Random Variation</label>
                 </div>
 
                 <!-- IDV 11-15: Cooling System Disturbances -->
-                <div class="idv-control">
-                    <label><strong>IDV_11:</strong> Reactor Cooling Water Inlet Temp Random</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(11, this.value)" id="idv11">
-                    <div>Status: <span id="idv11-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv11" onchange="setIDV(11, this.checked ? 1 : 0)">
+                    <label for="idv11"><strong>IDV_11:</strong> Reactor Cooling Water Inlet Temp Random</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_12:</strong> Condenser Cooling Water Inlet Temp Random</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(12, this.value)" id="idv12">
-                    <div>Status: <span id="idv12-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv12" onchange="setIDV(12, this.checked ? 1 : 0)">
+                    <label for="idv12"><strong>IDV_12:</strong> Condenser Cooling Water Inlet Temp Random</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_13:</strong> Reaction Kinetics</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(13, this.value)" id="idv13">
-                    <div>Status: <span id="idv13-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv13" onchange="setIDV(13, this.checked ? 1 : 0)">
+                    <label for="idv13"><strong>IDV_13:</strong> Reaction Kinetics</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_14:</strong> Reactor Cooling Water Valve</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(14, this.value)" id="idv14">
-                    <div>Status: <span id="idv14-value">OFF</span></div>
+                <!-- IDV 14-20: Valve Sticking and Unknown -->
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv14" onchange="setIDV(14, this.checked ? 1 : 0)">
+                    <label for="idv14"><strong>IDV_14:</strong> Reactor Cooling Water Valve</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_15:</strong> Condenser Cooling Water Valve</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(15, this.value)" id="idv15">
-                    <div>Status: <span id="idv15-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv15" onchange="setIDV(15, this.checked ? 1 : 0)">
+                    <label for="idv15"><strong>IDV_15:</strong> Condenser Cooling Water Valve</label>
                 </div>
 
-                <!-- IDV 16-20: Additional Disturbances -->
-                <div class="idv-control">
-                    <label><strong>IDV_16:</strong> Unknown</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(16, this.value)" id="idv16">
-                    <div>Status: <span id="idv16-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv16" onchange="setIDV(16, this.checked ? 1 : 0)">
+                    <label for="idv16"><strong>IDV_16:</strong> Unknown</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_17:</strong> Unknown</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(17, this.value)" id="idv17">
-                    <div>Status: <span id="idv17-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv17" onchange="setIDV(17, this.checked ? 1 : 0)">
+                    <label for="idv17"><strong>IDV_17:</strong> Unknown</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_18:</strong> Unknown</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(18, this.value)" id="idv18">
-                    <div>Status: <span id="idv18-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv18" onchange="setIDV(18, this.checked ? 1 : 0)">
+                    <label for="idv18"><strong>IDV_18:</strong> Unknown</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_19:</strong> Unknown</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(19, this.value)" id="idv19">
-                    <div>Status: <span id="idv19-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv19" onchange="setIDV(19, this.checked ? 1 : 0)">
+                    <label for="idv19"><strong>IDV_19:</strong> Unknown</label>
                 </div>
 
-                <div class="idv-control">
-                    <label><strong>IDV_20:</strong> Unknown</label>
-                    <input type="range" class="slider" min="0" max="1" step="1" value="0"
-                           onchange="setIDV(20, this.value)" id="idv20">
-                    <div>Status: <span id="idv20-value">OFF</span></div>
+                <div class="idv-checkbox">
+                    <input type="checkbox" id="idv20" onchange="setIDV(20, this.checked ? 1 : 0)">
+                    <label for="idv20"><strong>IDV_20:</strong> Unknown</label>
                 </div>
             </div>
         </div>
@@ -1697,10 +1818,10 @@ TEP Simulation → Automatic Data Flow → FaultExplainer
                     <h4>🚀 Quick Start Guide</h4>
                     <ol>
                         <li><strong>Start TEP</strong> (orange button) - Starts chemical plant simulation</li>
-                        <li><strong>Start Backend</strong> (blue button) - Starts FaultExplainer analysis engine</li>
-                        <li><strong>Start Frontend</strong> (purple button) - Starts FaultExplainer web interface (optional)</li>
-                        <li><strong>Choose Preset:</strong> Demo (fast testing) | Balanced (development) | Realistic (industrial)</li>
-                        <li><strong>Inject Faults:</strong> Use IDV sliders to simulate plant disturbances</li>
+                        <li><strong>Start Backend</strong> (blue button) - Starts Fault Analysis engine</li>
+                        <li><strong>Start Frontend</strong> (purple button) - Starts Fault Analysis web interface (optional)</li>
+                        <li><strong>Control Process:</strong> Use XMV sliders (0-100%) to adjust valve positions and flows</li>
+                        <li><strong>Inject Faults:</strong> Use IDV checkboxes (☐/☑) to simulate plant disturbances</li>
                         <li><strong>Monitor Results:</strong> Click "Show Last 5 Analyses" to see LLM diagnosis</li>
                     </ol>
 
