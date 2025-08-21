@@ -106,7 +106,7 @@ def fix_llm_configuration():
     # Check Gemini API key
     print(f"\nChecking Gemini API...")
     print("❌ Gemini API key invalid")
-    print("   Your API key: AIzaSyCdfWjLEELyRgMJ5tqcdGi_jS-KJ3LLrG8")
+    print("   Your API key: YOUR_GOOGLE_API_KEY_HERE")
     print("   To fix:")
     print("   1. Go to https://makersuite.google.com/app/apikey")
     print("   2. Create a new API key")

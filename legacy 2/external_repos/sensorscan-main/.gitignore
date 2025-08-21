@@ -1,8 +1,0 @@
-.DS_Store
-.vscode/*
-**/__pycache__/*
-data/*
-**/.ipynb_checkpoints/*
-lightning_logs/*
-*.ipynb
-outputs/*
