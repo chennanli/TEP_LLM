@@ -95,8 +95,15 @@ class MultiLLMClient:
         )
     
     def _init_gemini(self, config: Dict[str, Any]) -> Any:
-        """Initialize Google Gemini client"""
-        genai.configure(api_key=config["api_key"])
+        """Initialize Google Gemini client with failover support"""
+        # Store both API keys for failover
+        self.gemini_config = config
+        self.gemini_primary_key = config["api_key"]
+        self.gemini_backup_key = config.get("backup_api_key")
+        self.gemini_current_key = self.gemini_primary_key
+
+        # Configure with primary key initially
+        genai.configure(api_key=self.gemini_primary_key)
         return genai.GenerativeModel(config["model_name"])
     
     def _init_claude(self, config: Dict[str, Any]) -> Anthropic:
@@ -231,26 +238,72 @@ class MultiLLMClient:
                 await asyncio.sleep(2)  # Wait before retry
     
     async def _query_gemini(self, system_message: str, user_prompt: str) -> str:
-        """Query Google Gemini"""
+        """Query Google Gemini with automatic failover"""
         client = self.clients["gemini"]
 
         # Combine system message and user prompt for Gemini
         full_prompt = f"{system_message}\n\n{user_prompt}"
 
-        # Run in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: client.generate_content(
-                full_prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.7,
-                    max_output_tokens=2000,
+        # Try primary API key first
+        try:
+            print(f"🔑 Using Gemini primary API key: {self.gemini_current_key[:20]}...")
+
+            # Run in thread pool to avoid blocking
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: client.generate_content(
+                    full_prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.7,
+                        max_output_tokens=2000,
+                    )
                 )
             )
-        )
 
-        return response.text
+            return response.text
+
+        except Exception as e:
+            print(f"❌ Primary Gemini API key failed: {str(e)}")
+
+            # Try backup API key if available and auto_failover is enabled
+            if (hasattr(self, 'gemini_backup_key') and
+                self.gemini_backup_key and
+                self.gemini_config.get("auto_failover", False) and
+                self.gemini_current_key != self.gemini_backup_key):
+
+                print(f"🔄 Switching to backup Gemini API key: {self.gemini_backup_key[:20]}...")
+
+                try:
+                    # Switch to backup key
+                    self.gemini_current_key = self.gemini_backup_key
+                    genai.configure(api_key=self.gemini_backup_key)
+
+                    # Recreate client with backup key
+                    client = genai.GenerativeModel(self.gemini_config["model_name"])
+                    self.clients["gemini"] = client
+
+                    # Retry with backup key
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: client.generate_content(
+                            full_prompt,
+                            generation_config=genai.types.GenerationConfig(
+                                temperature=0.7,
+                                max_output_tokens=2000,
+                            )
+                        )
+                    )
+
+                    print(f"✅ Backup Gemini API key working!")
+                    return response.text
+
+                except Exception as backup_error:
+                    print(f"❌ Backup Gemini API key also failed: {str(backup_error)}")
+                    raise Exception(f"Both Gemini API keys failed. Primary: {str(e)}, Backup: {str(backup_error)}")
+            else:
+                # No backup available or auto_failover disabled
+                raise e
     
     async def _query_claude(self, system_message: str, user_prompt: str) -> str:
         """Query Claude"""

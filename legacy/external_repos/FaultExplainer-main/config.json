@@ -5,7 +5,7 @@
   "pca_window_size": 20,
   "decimation_N": 1,
   "llm_min_interval_seconds": 30,
-  "anomaly_threshold": 0.05,
+  "anomaly_threshold": 0.001,
   "models": {
     "anthropic": {
       "api_key": "YOUR_ANTHROPIC_API_KEY_HERE",
@@ -15,11 +15,13 @@
       "description": "High-quality analysis with API costs"
     },
     "gemini": {
-      "api_key": "YOUR_GOOGLE_API_KEY_HERE",
-      "model_name": "gemini-1.5-pro",
+      "api_key": "YOUR_GEMINI_API_KEY_HERE",
+      "backup_api_key": "YOUR_GEMINI_BACKUP_API_KEY_HERE",
+      "model_name": "gemini-1.5-flash",
       "enabled": true,
       "premium": true,
-      "description": "Alternative premium analysis option"
+      "description": "Alternative premium analysis option with auto-failover",
+      "auto_failover": true
     },
     "lmstudio": {
       "enabled": false,

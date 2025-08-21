@@ -3,12 +3,14 @@
 
 python module temain_mod ! in 
     interface  ! in :temain_mod
-        subroutine temain(npts,nx,idata,xdata,verbose) ! in :temain_mod:src/tep/temain_mod.f
+        subroutine temain(npts,nx,idata,xdata,verbose,user_control_mode,user_xmv) ! in :temain_mod:src/tep/temain_mod.f
             integer, intent(in) :: npts
             integer, intent(in) :: nx
             integer dimension(nx,20), intent(in), depend(nx) :: idata
             double precision dimension(nx,52),depend(nx), intent(out) :: xdata
             integer, intent(in) :: verbose
+            integer, intent(in) :: user_control_mode
+            double precision dimension(11), intent(in) :: user_xmv
             double precision dimension(41) :: xmeas
             double precision dimension(12) :: xmv
             integer dimension(20) :: idv
@@ -817,13 +819,7 @@ python module temain_mod ! in
             integer, intent(in) :: verbose
             double precision, intent(in) :: speed_factor
         end subroutine temain_true_speed
-        subroutine temain_accelerated(npts,nx,idata,xdata,verbose,speed_factor) ! in :temain_mod:src/tep/temain_mod.f
-            integer, intent(in) :: npts
-            integer, intent(in) :: nx
-            integer dimension(nx,20), intent(in), depend(nx) :: idata
-            double precision dimension(nx,52),depend(nx), intent(out) :: xdata
-            integer, intent(in) :: verbose
-            double precision, intent(in) :: speed_factor
+        ! temain_accelerated removed - using basic temain only
             double precision dimension(41) :: xmeas
             double precision dimension(12) :: xmv
             integer dimension(20) :: idv
@@ -906,7 +902,7 @@ python module temain_mod ! in
             common /ctrl19/ gain19,taui19,errold19
             common /ctrl20/ gain20,taui20,errold20
             common /ctrl22/ gain22,taui22,errold22
-        end subroutine temain_accelerated
+        ! end subroutine temain_accelerated - removed
     end interface
 end python module temain_mod
 

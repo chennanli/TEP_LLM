@@ -33,14 +33,14 @@ function testFunction() {
     showMessage('Test function works!', 'success');
 }
 
-// PCA Stabilization Functions
+// Anomaly Detection Stabilization Functions
 function checkPCAStatus() {
-    console.log('Checking PCA status...');
+    console.log('Checking Anomaly Detection status...');
     fetch('/api/pca/status')
         .then(function(response) { return response.json(); })
         .then(function(data) {
-            console.log('PCA Status:', data);
-            var statusText = 'PCA Status: ';
+            console.log('Anomaly Detection Status:', data);
+            var statusText = 'Anomaly Detection Status: ';
             if (data.training_mode) {
                 statusText += 'Training (' + data.collected + '/' + data.target + ')';
             } else if (data.is_stable) {
@@ -51,13 +51,13 @@ function checkPCAStatus() {
             showMessage(statusText, data.is_stable ? 'success' : 'info');
         })
         .catch(function(error) {
-            console.error('PCA status check failed:', error);
-            showMessage('PCA status check failed', 'error');
+            console.error('Anomaly Detection status check failed:', error);
+            showMessage('Anomaly Detection status check failed', 'error');
         });
 }
 
 function stabilizePCA() {
-    console.log('Starting PCA stabilization...');
+    console.log('Starting Anomaly Detection stabilization...');
     showMessage('Checking system stability...', 'info');
 
     fetch('/api/pca/stabilize', {
@@ -66,7 +66,7 @@ function stabilizePCA() {
     })
     .then(function(response) { return response.json(); })
     .then(function(data) {
-        console.log('PCA Stabilization Response:', data);
+        console.log('Anomaly Detection Stabilization Response:', data);
         if (data.success) {
             showMessage(data.message, 'success');
             // Start monitoring progress
@@ -76,8 +76,8 @@ function stabilizePCA() {
         }
     })
     .catch(function(error) {
-        console.error('PCA stabilization failed:', error);
-        showMessage('PCA stabilization failed', 'error');
+        console.error('Anomaly Detection stabilization failed:', error);
+        showMessage('Anomaly Detection stabilization failed', 'error');
     });
 }
 
@@ -87,15 +87,15 @@ function monitorPCAProgress() {
         .then(function(data) {
             if (data.training_mode) {
                 var progress = Math.round(data.progress);
-                showMessage('PCA Training: ' + data.collected + '/' + data.target + ' (' + progress + '%)', 'info');
+                showMessage('Anomaly Detection Training: ' + data.collected + '/' + data.target + ' (' + progress + '%)', 'info');
                 // Continue monitoring
                 setTimeout(monitorPCAProgress, 3000);
             } else {
-                showMessage('PCA Training Complete! System ready for testing.', 'success');
+                showMessage('Anomaly Detection Training Complete! System ready for testing.', 'success');
             }
         })
         .catch(function(error) {
-            console.error('PCA progress monitoring failed:', error);
+            console.error('Anomaly Detection progress monitoring failed:', error);
         });
 }
 

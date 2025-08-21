@@ -1,0 +1,33 @@
+{
+  "llm_providers": {
+    "anthropic": {
+      "model": "claude-3-5-sonnet-20241022",
+      "api_key": "YOUR_ANTHROPIC_API_KEY_HERE",
+      "max_tokens": 4000,
+      "temperature": 0.1
+    },
+    "google": {
+      "model": "gemini-1.5-pro",
+      "api_key": "YOUR_GOOGLE_API_KEY_HERE",
+      "max_tokens": 4000,
+      "temperature": 0.1
+    },
+    "lmstudio": {
+      "base_url": "http://localhost:1234/v1",
+      "model": "mistral-small",
+      "api_key": "lm-studio",
+      "max_tokens": 4000,
+      "temperature": 0.1
+    }
+  },
+  "anomaly_detection": {
+    "method": "pca",
+    "threshold": 0.05,
+    "training_window": 30
+  },
+  "tep_simulation": {
+    "speed_factor": 1.0,
+    "prerun_steps": 1800,
+    "data_collection_interval": 3
+  }
+}

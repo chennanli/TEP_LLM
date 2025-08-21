@@ -76,6 +76,12 @@ Icon
 config.ini
 secrets.json
 
+# Configuration files with API keys
+config.json
+*/config.json
+integration/src/backend/services/llm-analysis/config.json
+legacy/external_repos/FaultExplainer-main/config.json
+
 # Specific files with API keys (GitHub blocked)
 API_UPDATE_SUMMARY.md
 MVP_IMPLEMENTATION_PLAN.md

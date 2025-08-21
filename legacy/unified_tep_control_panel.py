@@ -75,12 +75,12 @@ class TEPDataBridge:
         self.pca_data_queue = deque(maxlen=500)   # Every 6 minutes (half speed)
         self.llm_data_queue = deque(maxlen=250)   # Every 12 minutes (quarter speed)
 
-        # PCA training mode
+        # Anomaly Detection training mode
         self.pca_training_mode = False
         self.pca_training_data = []
         self.pca_training_target = 30   # Faster demo training (reduced from 100)
 
-        # Stability monitoring for smart PCA retraining
+        # Stability monitoring for smart Anomaly Detection retraining
         self.stability_buffer = []
         self.stability_window = 20  # Monitor last 20 points for stability
         self.stability_threshold = 0.05  # 5% coefficient of variation threshold
@@ -218,16 +218,16 @@ class TEPDataBridge:
             # Always check stability for monitoring
             self.check_data_stability(mapped)
 
-            # Check if we're in PCA training mode
+            # Check if we're in Anomaly Detection training mode
             if self.pca_training_mode:
                 self.pca_training_data.append(mapped)
-                print(f"📊 PCA Training: Collected {len(self.pca_training_data)}/{self.pca_training_target} data points")
+                print(f"📊 Anomaly Detection Training: Collected {len(self.pca_training_data)}/{self.pca_training_target} data points")
 
                 if len(self.pca_training_data) >= self.pca_training_target:
-                    print("🎯 PCA Training: Target reached, retraining model...")
+                    print("🎯 Anomaly Detection Training: Target reached, retraining model...")
                     self.retrain_pca_model()
                     self.pca_training_mode = False
-                    print("✅ PCA Training: Complete, resuming normal operation")
+                    print("✅ Anomaly Detection Training: Complete, resuming normal operation")
 
                 # Don't send to ingest during training - just record heartbeat
                 self.last_ingest_at = time.time()
@@ -268,14 +268,14 @@ class TEPDataBridge:
             print(f"❌ Failed to POST /ingest: {e}")
 
     def retrain_pca_model(self):
-        """Retrain PCA model with collected stable data."""
+        """Retrain Anomaly Detection model with collected stable data."""
         try:
             import pandas as pd
             import requests
 
             # Convert training data to DataFrame
             df = pd.DataFrame(self.pca_training_data)
-            print(f"📊 Retraining PCA with {len(df)} data points")
+            print(f"📊 Retraining Anomaly Detection with {len(df)} data points")
 
             # Save training data
             training_file = "external_repos/FaultExplainer-main/backend/data/live_fault0.csv"
@@ -290,17 +290,17 @@ class TEPDataBridge:
             response = requests.post(retrain_url, json=payload, timeout=120)
             if response.status_code == 200:
                 result = response.json()
-                print(f"✅ PCA model retrained successfully")
+                print(f"✅ Anomaly Detection model retrained successfully")
                 print(f"   - Components: {result.get('n_components', 'N/A')}")
                 print(f"   - Threshold: {result.get('t2_threshold', 'N/A'):.2f}")
             else:
-                print(f"❌ PCA retrain failed: {response.status_code} {response.text}")
+                print(f"❌ Anomaly Detection retrain failed: {response.status_code} {response.text}")
 
         except Exception as e:
-            print(f"❌ PCA retrain error: {e}")
+            print(f"❌ Anomaly Detection retrain error: {e}")
 
     def check_data_stability(self, data_point):
-        """Check if recent data is stable enough for PCA retraining."""
+        """Check if recent data is stable enough for Anomaly Detection retraining."""
         # Add current data point to stability buffer
         key_vars = ['A Feed', 'Reactor Pressure', 'Reactor Level', 'Reactor Temperature']
         stability_values = []
@@ -331,10 +331,10 @@ class TEPDataBridge:
         return False
 
     def start_pca_training(self):
-        """Start PCA training mode."""
+        """Start Anomaly Detection training mode."""
         self.pca_training_mode = True
         self.pca_training_data = []
-        print(f"🎯 PCA Training: Started, will collect {self.pca_training_target} stable data points")
+        print(f"🎯 Anomaly Detection Training: Started, will collect {self.pca_training_target} stable data points")
 
     def set_idv(self, idv_num, value):
         """Set IDV value (1-20, binary 0 or 1 as per original TEP paper)."""
@@ -349,14 +349,14 @@ class TEPDataBridge:
         return False
 
     def set_xmv(self, xmv_num, value):
-        """Set XMV value (1-12, continuous 0.0-100.0% as per original TEP paper)."""
-        if 1 <= xmv_num <= 12:
+        """Set XMV value (1-11, continuous 0.0-100.0% as per original TEP paper)."""
+        if 1 <= xmv_num <= 11:
             # Convert to float (0.0-100.0) as per original TEP specification
             float_value = float(value)
             if 0.0 <= float_value <= 100.0:
-                # Initialize XMV values if not exists
+                # Initialize XMV values if not exists (TEP requires exactly 11 values for XMV(1) to XMV(11))
                 if not hasattr(self, 'xmv_values'):
-                    self.xmv_values = np.array([63.0, 53.0, 24.0, 61.0, 22.0, 40.0, 38.0, 46.0, 47.0, 41.0, 18.0, 50.0])
+                    self.xmv_values = np.array([63.0, 53.0, 24.0, 61.0, 22.0, 40.0, 38.0, 46.0, 47.0, 41.0, 18.0])
 
                 self.xmv_values[xmv_num - 1] = float_value
                 print(f"🎛️ Set XMV_{xmv_num} = {float_value:.1f}%")
@@ -390,7 +390,8 @@ class TEPDataBridge:
             print(f"🎛️ Current XMV values: {self.xmv_values if hasattr(self, 'xmv_values') else 'Not set'}")
 
             # Create and run fresh simulation - this gives us REAL dynamic data
-            tep_sim = self.tep2py.tep2py(full_matrix, speed_factor=self.speed_factor)
+            user_xmv = self.xmv_values if hasattr(self, 'xmv_values') else None
+            tep_sim = self.tep2py.tep2py(full_matrix, speed_factor=self.speed_factor, user_xmv=user_xmv)
             tep_sim.simulate()
 
             # Extract the LATEST data point (corresponds to current step)
@@ -528,16 +529,16 @@ class TEPDataBridge:
                     if self.save_data_for_faultexplainer(data_point):
                         pass
 
-                    # Also send to live /ingest for real-time PCA+LLM
+                    # Also send to live /ingest for real-time Anomaly Detection+LLM
                     print("➡️ Posting /ingest...")
                     self.send_to_ingest(data_point)
 
-                    # Check if time for PCA analysis (every 6 minutes)
+                    # Check if time for Anomaly Detection analysis (every 6 minutes)
                     current_time = time.time()
                     if current_time - self.last_pca_time >= self.pca_interval:
                         self.pca_data_queue.append(data_point)
                         self.last_pca_time = current_time
-                        print(f"📊 PCA data point added (step {self.current_step})")
+                        print(f"📊 Anomaly Detection data point added (step {self.current_step})")
 
                         # Check if time for LLM analysis (every 12 minutes)
                         if current_time - self.last_llm_time >= self.llm_interval:
@@ -1139,7 +1140,7 @@ class UnifiedControlPanel:
             self.bridge.start_pca_training()
             return jsonify({
                 'success': True,
-                'message': f'PCA training started, will collect {self.bridge.pca_training_target} data points',
+                'message': f'Anomaly Detection training started, will collect {self.bridge.pca_training_target} data points',
                 'target': self.bridge.pca_training_target
             })
 
@@ -1156,12 +1157,12 @@ class UnifiedControlPanel:
 
         @self.app.route('/api/pca/stabilize', methods=['POST'])
         def stabilize_pca():
-            """Smart PCA retraining: collect stable data and retrain."""
+            """Smart Anomaly Detection retraining: collect stable data and retrain."""
             if self.bridge.is_stable:
                 self.bridge.start_pca_training()
                 return jsonify({
                     'success': True,
-                    'message': f'PCA stabilization started. System is stable, collecting {self.bridge.pca_training_target} data points.',
+                    'message': f'Anomaly Detection stabilization started. System is stable, collecting {self.bridge.pca_training_target} data points.',
                     'is_stable': True
                 })
             else:
@@ -1836,11 +1837,14 @@ CONTROL_PANEL_HTML = '''
                     <button class="btn btn-info" onclick="systemHealthCheck()" style="margin-top: 8px;">🔍 System Health Check</button>
                     <button class="btn btn-success" onclick="ultraStart()" style="margin-top: 8px; font-weight: bold; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); border: none; color: white;">🚀 ULTRA START (50x)</button>
                     <div style="margin-top: 10px; padding: 8px; background: #f0f8ff; border-radius: 5px; border-left: 4px solid #2196f3;">
-                        <h5 style="margin: 0 0 5px 0; color: #1976d2;">🎯 PCA Stabilization</h5>
+                        <h5 style="margin: 0 0 5px 0; color: #1976d2;">🎯 Anomaly Detection Stabilization</h5>
+                        <div id="training-progress" style="display: none; margin: 5px 0; padding: 5px; background: #e8f5e8; border-radius: 3px; font-weight: bold; color: #2e7d32;">
+                            📊 Training Progress: <span id="progress-text">0/30</span>
+                        </div>
                         <button class="btn btn-info" onclick="checkPCAStatus()" style="margin-right: 5px;">📊 Check Status</button>
-                        <button class="btn btn-success" onclick="stabilizePCA()">🎯 Stabilize PCA</button>
+                        <button class="btn btn-success" onclick="stabilizePCA()">🎯 Stabilize System</button>
                         <p style="font-size: 11px; color: #666; margin: 5px 0 0 0;">
-                            Wait for system stability, then click "Stabilize PCA" for perfect anomaly detection
+                            Wait for system stability, then click "Stabilize System" for perfect anomaly detection
                         </p>
                     </div>
                         <div style="margin-top:10px;">
@@ -1961,7 +1965,7 @@ CONTROL_PANEL_HTML = '''
 
         <!-- XMV Process Controls -->
         <div class="section">
-            <h3>🎛️ Process Controls (XMV Variables) - 12 Manipulated Variables</h3>
+            <h3>🎛️ Process Controls (XMV Variables) - 11 Manipulated Variables</h3>
             <p><span class="correct-badge">CONTINUOUS</span> Range: 0-100% - Valve positions and control setpoints</p>
             <div class="xmv-grid">
                 <!-- Feed Flow Controls -->
@@ -2044,12 +2048,7 @@ CONTROL_PANEL_HTML = '''
                     <div>Value: <span id="xmv11-value">18.0</span>%</div>
                 </div>
 
-                <div class="xmv-control">
-                    <label><strong>XMV_12:</strong> Agitator Speed</label>
-                    <input type="range" class="slider" min="0" max="100" step="0.1" value="50.0"
-                           onchange="setXMV(12, this.value)" id="xmv12">
-                    <div>Value: <span id="xmv12-value">50.0</span>%</div>
-                </div>
+
             </div>
         </div>
 
@@ -2255,7 +2254,7 @@ TEP Simulation → Automatic Data Flow → FaultExplainer
                                 <td>180 seconds (3 min)</td>
                             </tr>
                             <tr>
-                                <td><strong>PCA Window Size</strong></td>
+                                <td><strong>Anomaly Detection Window Size</strong></td>
                                 <td>8 samples</td>
                                 <td>12 samples</td>
                                 <td>20 samples</td>

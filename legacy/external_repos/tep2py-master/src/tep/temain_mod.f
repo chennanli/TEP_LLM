@@ -195,7 +195,8 @@ C
 C=============================================================================
 C
 C
-      SUBROUTINE TEMAIN(NPTS, NX, IDATA, XDATA, VERBOSE)
+      SUBROUTINE TEMAIN(NPTS, NX, IDATA, XDATA, VERBOSE,
+     &                  USER_CONTROL_MODE, USER_XMV)
 C ****************************************************************************
 *     COMPUTES THE 41 PROCESS MEASUREMENTS AND 11 MANIPULATED VARIABLES GIVEN
 *     THE DISTURBANCES TIME-SERIES MATRIX
@@ -275,6 +276,11 @@ C  New local variables from subroutine
 C
       INTEGER IDATA(NX, 20), K, VERBOSE
       DOUBLE PRECISION XDATA(NX, 52)
+C
+C  User control parameters
+C
+      INTEGER USER_CONTROL_MODE
+      DOUBLE PRECISION USER_XMV(11)
 C
 C  Set the number of differential equations (states).  The process has 50
 C  states.  If the user wishes to integrate additional states, NN must be
@@ -372,20 +378,36 @@ CC      ERROLD = 0.0
       TAUI22=1000./3600.
       ERROLD22=0.0
 C
-C    Example Disturbance:
-C    Change Reactor Cooling
+C    Conditional XMV Initialization:
+C    Use user values if USER_CONTROL_MODE = 1, otherwise use defaults
 C
-      XMV(1) = 63.053 + 0.
-      XMV(2) = 53.980 + 0.
-      XMV(3) = 24.644 + 0.
-      XMV(4) = 61.302 + 0.
-      XMV(5) = 22.210 + 0.
-      XMV(6) = 40.064 + 0.
-      XMV(7) = 38.100 + 0.
-      XMV(8) = 46.534 + 0.
-      XMV(9) = 47.446 + 0.
-      XMV(10)= 41.106 + 0.
-      XMV(11)= 18.114 + 0.
+      IF (USER_CONTROL_MODE .EQ. 1) THEN
+C       Use user-specified XMV values
+        XMV(1) = USER_XMV(1)
+        XMV(2) = USER_XMV(2)
+        XMV(3) = USER_XMV(3)
+        XMV(4) = USER_XMV(4)
+        XMV(5) = USER_XMV(5)
+        XMV(6) = USER_XMV(6)
+        XMV(7) = USER_XMV(7)
+        XMV(8) = USER_XMV(8)
+        XMV(9) = USER_XMV(9)
+        XMV(10)= USER_XMV(10)
+        XMV(11)= USER_XMV(11)
+      ELSE
+C       Use default factory values
+        XMV(1) = 63.053
+        XMV(2) = 53.980
+        XMV(3) = 24.644
+        XMV(4) = 61.302
+        XMV(5) = 22.210
+        XMV(6) = 40.064
+        XMV(7) = 38.100
+        XMV(8) = 46.534
+        XMV(9) = 47.446
+        XMV(10)= 41.106
+        XMV(11)= 18.114
+      ENDIF
 C
 C	SETPT(6)=SETPT(6) + 0.2
 C
