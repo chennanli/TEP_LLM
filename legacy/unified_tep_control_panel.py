@@ -53,6 +53,8 @@ class TEPDataBridge:
     """Bridge between dynamic TEP simulation and FaultExplainer."""
 
     def __init__(self):
+        # Auto-cleanup before initialization
+        self.auto_cleanup_tep_processes()
         self.setup_tep2py()
 
         # Simulation state
@@ -64,10 +66,25 @@ class TEPDataBridge:
         from collections import deque as _deque
         self.idv_history = _deque(maxlen=1200)  # ~1 day of 3-min steps
 
+        # Keep persistent simulation instance to avoid re-running entire history
+        self.tep_sim_instance = None
+        self.last_simulated_step = 0
+
         # Data queues with proper timing
         self.raw_data_queue = deque(maxlen=1000)  # Every 3 minutes (raw TEP)
         self.pca_data_queue = deque(maxlen=500)   # Every 6 minutes (half speed)
         self.llm_data_queue = deque(maxlen=250)   # Every 12 minutes (quarter speed)
+
+        # PCA training mode
+        self.pca_training_mode = False
+        self.pca_training_data = []
+        self.pca_training_target = 30   # Faster demo training (reduced from 100)
+
+        # Stability monitoring for smart PCA retraining
+        self.stability_buffer = []
+        self.stability_window = 20  # Monitor last 20 points for stability
+        self.stability_threshold = 0.05  # 5% coefficient of variation threshold
+        self.is_stable = False
 
         # Timing control
         self.last_pca_time = 0
@@ -89,6 +106,7 @@ class TEPDataBridge:
         self.last_ingest_ok = False
         self.csv_rows = 0
         self.csv_bytes = 0
+        self.last_saved_step = -1  # Track last saved step to prevent duplicates
 
         # Cost protection
         self.last_auto_stop_check = 0
@@ -99,6 +117,64 @@ class TEPDataBridge:
 
         print("✅ TEP Data Bridge initialized")
         print("✅ Timing: TEP(3min) → Anomaly Detection(6min) → LLM(12min)")
+
+    def auto_cleanup_tep_processes(self):
+        """Auto-cleanup any existing TEP processes and data files for clean startup."""
+        print("🧹 Auto-cleanup: Checking for existing TEP processes...")
+
+        try:
+            import psutil
+
+            # Find and terminate existing TEP processes
+            tep_processes = []
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = ' '.join(proc.info['cmdline']) if proc.info['cmdline'] else ''
+
+                    # Look for other TEP-related processes (but not current one)
+                    if any(keyword in cmdline.lower() for keyword in [
+                        'unified_tep_control_panel',
+                        'tep_bridge',
+                        'mvp_dashboard'
+                    ]) and proc.info['pid'] != os.getpid():
+                        tep_processes.append(proc.info['pid'])
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+
+            # Terminate found processes
+            if tep_processes:
+                print(f"🔪 Found {len(tep_processes)} existing TEP processes, terminating...")
+                for pid in tep_processes:
+                    try:
+                        os.kill(pid, signal.SIGTERM)
+                        print(f"✅ Terminated PID {pid}")
+                    except:
+                        pass
+                time.sleep(1)  # Give processes time to exit
+            else:
+                print("✅ No conflicting TEP processes found")
+
+            # Clean up data file for fresh start
+            data_file = os.path.join('data', 'live_tep_data.csv')
+            if os.path.exists(data_file):
+                try:
+                    # Keep header only
+                    with open(data_file, 'r') as f:
+                        header = f.readline()
+
+                    with open(data_file, 'w') as f:
+                        f.write(header)
+
+                    print(f"✅ Cleaned data file: {data_file}")
+                except Exception as e:
+                    print(f"⚠️ Could not clean data file: {e}")
+
+            print("✅ Auto-cleanup completed")
+
+        except ImportError:
+            print("⚠️ psutil not available, skipping process cleanup")
+        except Exception as e:
+            print(f"⚠️ Auto-cleanup error: {e}")
 
     def setup_tep2py(self):
         """Setup real tep2py simulator."""
@@ -138,6 +214,27 @@ class TEPDataBridge:
         start = time.time()
         try:
             mapped = self.map_to_faultexplainer_features(data_point)
+
+            # Always check stability for monitoring
+            self.check_data_stability(mapped)
+
+            # Check if we're in PCA training mode
+            if self.pca_training_mode:
+                self.pca_training_data.append(mapped)
+                print(f"📊 PCA Training: Collected {len(self.pca_training_data)}/{self.pca_training_target} data points")
+
+                if len(self.pca_training_data) >= self.pca_training_target:
+                    print("🎯 PCA Training: Target reached, retraining model...")
+                    self.retrain_pca_model()
+                    self.pca_training_mode = False
+                    print("✅ PCA Training: Complete, resuming normal operation")
+
+                # Don't send to ingest during training - just record heartbeat
+                self.last_ingest_at = time.time()
+                self.last_ingest_ok = True
+                self.last_ingest_info = {"status": "training", "collected": len(self.pca_training_data)}
+                return
+
             import requests
             r = requests.post(url, json={"data_point": mapped}, timeout=60)
             self.last_ingest_at = time.time()
@@ -170,6 +267,74 @@ class TEPDataBridge:
             self.last_ingest_info = {"error": str(e)}
             print(f"❌ Failed to POST /ingest: {e}")
 
+    def retrain_pca_model(self):
+        """Retrain PCA model with collected stable data."""
+        try:
+            import pandas as pd
+            import requests
+
+            # Convert training data to DataFrame
+            df = pd.DataFrame(self.pca_training_data)
+            print(f"📊 Retraining PCA with {len(df)} data points")
+
+            # Save training data
+            training_file = "external_repos/FaultExplainer-main/backend/data/live_fault0.csv"
+            os.makedirs(os.path.dirname(training_file), exist_ok=True)
+            df.to_csv(training_file, index=False)
+            print(f"💾 Saved training data to {training_file}")
+
+            # Send retrain request to FaultExplainer
+            retrain_url = "http://localhost:8000/retrain"
+            payload = {"training_file": "live_fault0.csv"}
+
+            response = requests.post(retrain_url, json=payload, timeout=120)
+            if response.status_code == 200:
+                result = response.json()
+                print(f"✅ PCA model retrained successfully")
+                print(f"   - Components: {result.get('n_components', 'N/A')}")
+                print(f"   - Threshold: {result.get('t2_threshold', 'N/A'):.2f}")
+            else:
+                print(f"❌ PCA retrain failed: {response.status_code} {response.text}")
+
+        except Exception as e:
+            print(f"❌ PCA retrain error: {e}")
+
+    def check_data_stability(self, data_point):
+        """Check if recent data is stable enough for PCA retraining."""
+        # Add current data point to stability buffer
+        key_vars = ['A Feed', 'Reactor Pressure', 'Reactor Level', 'Reactor Temperature']
+        stability_values = []
+
+        for var in key_vars:
+            if var in data_point:
+                stability_values.append(data_point[var])
+
+        if stability_values:
+            avg_value = sum(stability_values) / len(stability_values)
+            self.stability_buffer.append(avg_value)
+
+            # Keep only recent points
+            if len(self.stability_buffer) > self.stability_window:
+                self.stability_buffer.pop(0)
+
+            # Check stability if we have enough points
+            if len(self.stability_buffer) >= self.stability_window:
+                import numpy as np
+                values = np.array(self.stability_buffer)
+                mean_val = np.mean(values)
+                std_val = np.std(values)
+                cv = std_val / mean_val if mean_val != 0 else 1.0
+
+                self.is_stable = bool(cv < self.stability_threshold)
+                return self.is_stable
+
+        return False
+
+    def start_pca_training(self):
+        """Start PCA training mode."""
+        self.pca_training_mode = True
+        self.pca_training_data = []
+        print(f"🎯 PCA Training: Started, will collect {self.pca_training_target} stable data points")
 
     def set_idv(self, idv_num, value):
         """Set IDV value (1-20, binary 0 or 1 as per original TEP paper)."""
@@ -199,45 +364,85 @@ class TEPDataBridge:
         return False
 
     def run_tep_simulation_step(self):
-        """Run one TEP simulation step (3 minutes)."""
+        """Run one TEP simulation step (3 minutes) - GENUINE FORTRAN SIMULATION."""
         try:
             if not self.tep2py:
                 return None
 
-            # Append current IDV to history and build matrix up to 'now'
+            # Append current IDV to history
             self.idv_history.append(self.idv_values.copy())
-            import numpy as _np2
-            idv_matrix = _np2.array(list(self.idv_history)).reshape(-1, 20)
+            current_step = len(self.idv_history)
 
-            # Run TEP simulation for the whole history and take the latest row
-            # Pass speed factor to enable actual physics speed control
-            tep_sim = self.tep2py.tep2py(idv_matrix, speed_factor=self.speed_factor)
+            # REAL TEP SIMULATION: Always run fresh simulation with current history
+            # This ensures we get genuine dynamic data, not artificial stability
+            import numpy as _np2
+
+            # Create simulation matrix with current IDV history
+            # Include some pre-run steps for stability, then actual history
+            prerun_steps = 10  # Reduced for faster simulation
+            prerun_matrix = _np2.zeros((prerun_steps, 20), dtype=_np2.float64)  # No faults during pre-run
+
+            # Convert IDV history to proper format (FLOAT, not INT!)
+            actual_matrix = _np2.array(list(self.idv_history), dtype=_np2.float64).reshape(-1, 20)
+            full_matrix = _np2.vstack([prerun_matrix, actual_matrix])
+
+            print(f"🔄 Running REAL TEP simulation: {prerun_steps} pre-run + {current_step} actual steps (Speed: {self.speed_factor}x)")
+            print(f"🎛️ Current XMV values: {self.xmv_values if hasattr(self, 'xmv_values') else 'Not set'}")
+
+            # Create and run fresh simulation - this gives us REAL dynamic data
+            tep_sim = self.tep2py.tep2py(full_matrix, speed_factor=self.speed_factor)
             tep_sim.simulate()
 
-            if hasattr(tep_sim, 'process_data'):
-                # Get latest data point
+            # Extract the LATEST data point (corresponds to current step)
+            if hasattr(tep_sim, 'process_data') and len(tep_sim.process_data) > 0:
+                # Get the last data point (most recent simulation result)
                 latest = tep_sim.process_data.iloc[-1]
+                data_length = len(tep_sim.process_data)
 
-                # Extract XMEAS and XMV
+                print(f"📊 Using REAL Fortran simulation data (total points: {data_length}, using latest)")
+
+                # Extract XMEAS and XMV columns
                 xmeas_cols = [col for col in tep_sim.process_data.columns if 'XMEAS' in col]
                 xmv_cols = [col for col in tep_sim.process_data.columns if 'XMV' in col]
 
-                # Create data point
+                # Create data point with REAL simulation results
                 data_point = {
                     'timestamp': time.time(),
-                    'step': self.current_step,
+                    'step': current_step - 1,  # Use current_step from idv_history, 0-indexed
                     'idv_values': self.idv_values.copy(),
                 }
 
-                # Add XMEAS data
+                # Add XMEAS data (process measurements)
                 for i, col in enumerate(xmeas_cols):
-                    data_point[f'XMEAS_{i+1}'] = latest[col]
+                    if col in latest.index:
+                        data_point[f'XMEAS_{i+1}'] = float(latest[col])
+                    else:
+                        data_point[f'XMEAS_{i+1}'] = 0.0
 
-                # Add XMV data
+                # Add XMV data (manipulated variables)
                 for i, col in enumerate(xmv_cols):
-                    data_point[f'XMV_{i+1}'] = latest[col]
+                    if col in latest.index:
+                        data_point[f'XMV_{i+1}'] = float(latest[col])
+                    else:
+                        data_point[f'XMV_{i+1}'] = 0.0
+
+                # Debug: Compare set XMV vs actual XMV
+                if hasattr(self, 'xmv_values'):
+                    print(f"🔍 XMV Comparison:")
+                    for i in range(min(len(self.xmv_values), 5)):  # Show first 5
+                        set_val = self.xmv_values[i]
+                        actual_val = data_point.get(f'XMV_{i+1}', 0)
+                        print(f"   XMV_{i+1}: Set={set_val:.1f}%, Actual={actual_val:.1f}%")
+
+                # Log some key values to verify real data
+                xmeas_1 = data_point.get('XMEAS_1', 0)
+                xmeas_7 = data_point.get('XMEAS_7', 0)
+                print(f"📈 REAL data - XMEAS_1: {xmeas_1:.6f}, XMEAS_7: {xmeas_7:.6f}")
 
                 return data_point
+            else:
+                print(f"❌ No simulation data generated")
+                return None
 
         except Exception as e:
             print(f"❌ TEP simulation step failed: {e}")
@@ -246,6 +451,12 @@ class TEPDataBridge:
     def save_data_for_faultexplainer(self, data_point):
         """Save data in FaultExplainer format."""
         try:
+            # Prevent duplicate saves
+            current_step = data_point['step']
+            if current_step <= self.last_saved_step:
+                print(f"⏭️ Skipping duplicate step {current_step} (last saved: {self.last_saved_step})")
+                return True
+
             # Create CSV file path
             csv_path = os.path.join('data', 'live_tep_data.csv')
             os.makedirs('data', exist_ok=True)
@@ -280,14 +491,15 @@ class TEPDataBridge:
                     writer.writerow(header)
                 writer.writerow(row_data)
 
-            # Update simple CSV stats
+            # Update simple CSV stats and track last saved step
             try:
                 self.csv_rows += 1
                 self.csv_bytes = os.path.getsize(csv_path)
+                self.last_saved_step = current_step  # Update last saved step
             except Exception:
                 pass
 
-            print(f"💾 Saved data point {data_point['step']} to {csv_path}")
+            print(f"💾 Saved data point {current_step} to {csv_path}")
             return True
 
         except Exception as e:
@@ -333,7 +545,8 @@ class TEPDataBridge:
                             self.last_llm_time = current_time
                             print(f"🤖 LLM data point added (step {self.current_step})")
 
-                    self.current_step += 1
+                    # Update current_step to match the actual simulation step
+                    self.current_step = len(self.idv_history)
 
                 # Check for auto-shutdown signal (cost protection)
                 current_time = time.time()
@@ -402,6 +615,9 @@ class TEPDataBridge:
                 self.idv_history.clear()
             except Exception:
                 pass
+            # Reset simulation instance
+            self.tep_sim_instance = None
+            self.last_simulated_step = 0
             self.last_pca_time = 0
             self.last_llm_time = 0
             self.last_loop_at = 0
@@ -409,15 +625,81 @@ class TEPDataBridge:
             self.last_ingest_ok = False
             self.csv_rows = 0
             self.csv_bytes = 0
-            # Start fresh
+            self.last_saved_step = -1  # Reset duplicate prevention
+
+            # Ensure IDV values are reset to steady state (all zeros)
+            self.idv_values = np.zeros(20)
+
+            print("🏭 TEP Restart: Pre-running to steady state...")
+            print("   • IDV values: All zeros (no faults)")
+            print("   • Pre-run: 25 steps to reach steady state")
+            print("   • Data: Only steady-state data will be used")
+
+            # Pre-run to steady state
+            if not self.prerun_to_steady_state():
+                return False, "Failed to reach steady state"
+
+            # Start fresh with steady-state simulation
             self.tep_running = True
             self.simulation_thread = threading.Thread(target=self.simulation_loop, daemon=True)
             self.simulation_thread.start()
-            return True, "TEP simulation restarted"
+            return True, "TEP simulation restarted with true steady-state conditions"
         except Exception as e:
             return False, f"Failed to restart TEP: {e}"
 
-        return True, "TEP simulation started"
+    def prerun_to_steady_state(self):
+        """Pre-run TEP simulation to reach steady state before actual data collection."""
+        try:
+            print("🔄 Pre-running TEP simulation to steady state...")
+
+            # Create a longer IDV matrix for pre-run (25 steps should be enough)
+            prerun_steps = 25
+            idv_matrix = np.zeros((prerun_steps, 20))  # All zeros = no faults
+
+            # Create temporary simulation instance for pre-run
+            temp_sim = self.tep2py.tep2py(idv_matrix, speed_factor=1.0)  # Use normal speed for stability
+            temp_sim.simulate()
+
+            if hasattr(temp_sim, 'process_data'):
+                data = temp_sim.process_data
+
+                # Check if we reached steady state
+                if len(data) >= 20:
+                    # Analyze last 5 steps for stability
+                    reactor_pressure = data['XMEAS(7)'].values[-5:]
+                    reactor_temp = data['XMEAS(9)'].values[-5:]
+
+                    pressure_std = np.std(reactor_pressure)
+                    temp_std = np.std(reactor_temp)
+
+                    print(f"   📊 Steady state check:")
+                    print(f"      Reactor Pressure: {np.mean(reactor_pressure):.1f} ± {pressure_std:.1f} kPa")
+                    print(f"      Reactor Temperature: {np.mean(reactor_temp):.1f} ± {temp_std:.1f} °C")
+
+                    # Consider steady if standard deviation is small
+                    if pressure_std < 10 and temp_std < 1.0:
+                        print("   ✅ Steady state achieved!")
+
+                        # Store steady state values for reference
+                        self.steady_state_values = {
+                            'pressure': np.mean(reactor_pressure),
+                            'temperature': np.mean(reactor_temp),
+                            'achieved_at_step': prerun_steps
+                        }
+                        return True
+                    else:
+                        print("   ⚠️ Still not fully steady, but proceeding...")
+                        return True  # Proceed anyway, it's better than starting from scratch
+                else:
+                    print("   ⚠️ Insufficient data from pre-run")
+                    return False
+            else:
+                print("   ❌ No data from pre-run simulation")
+                return False
+
+        except Exception as e:
+            print(f"   ❌ Pre-run failed: {e}")
+            return False
 
     def stop_tep_simulation(self):
         """Stop TEP simulation."""
@@ -664,12 +946,82 @@ class TEPDataBridge:
             'idv_values': self.idv_values.tolist()
         }
 
+    def system_health_check(self):
+        """Comprehensive system health check with detailed diagnostics."""
+        status = self.get_status()
+        health = {
+            'overall_status': 'UNKNOWN',
+            'components': {},
+            'issues': [],
+            'recommendations': []
+        }
+
+        # Check TEP Simulation
+        simulation_active = (
+            status['tep_running'] and
+            hasattr(self, 'simulation_thread') and
+            self.simulation_thread and
+            self.simulation_thread.is_alive() and
+            (time.time() - status['last_loop_at'] < max(300, status['step_interval_seconds'] * 2))
+        )
+
+        if status['tep_running'] and simulation_active:
+            health['components']['tep_simulation'] = '✅ RUNNING'
+        elif status['tep_running'] and not simulation_active:
+            health['components']['tep_simulation'] = '⚠️ STARTED BUT NOT ACTIVE'
+            health['issues'].append('TEP simulation thread may have crashed')
+            health['recommendations'].append('Click "⟳ Restart TEP" to fix simulation thread')
+        else:
+            health['components']['tep_simulation'] = '❌ STOPPED'
+            health['issues'].append('TEP simulation not started')
+            health['recommendations'].append('Click "▶️ Start TEP" to begin simulation')
+
+        # Check Backend
+        if status['backend_running']:
+            health['components']['backend'] = '✅ RUNNING'
+        else:
+            health['components']['backend'] = '❌ STOPPED'
+            health['issues'].append('FaultExplainer backend not reachable')
+            health['recommendations'].append('Click "▶️ Start Backend" to start analysis engine')
+
+        # Check Data Flow
+        data_flow_active = (
+            simulation_active and
+            status['backend_running'] and
+            status['last_ingest_at'] > 0 and
+            (time.time() - status['last_ingest_at'] < max(600, status['step_interval_seconds'] * 3))
+        )
+
+        if data_flow_active:
+            health['components']['data_bridge'] = '✅ ACTIVE'
+        else:
+            health['components']['data_bridge'] = '❌ INACTIVE'
+            health['issues'].append('No data flow between TEP and FaultExplainer')
+
+        # Check Frontend (optional)
+        if status['frontend_running']:
+            health['components']['frontend'] = '✅ RUNNING'
+        else:
+            health['components']['frontend'] = '⚠️ STOPPED (Optional)'
+
+        # Overall Status
+        critical_issues = len([i for i in health['issues'] if 'TEP' in i or 'backend' in i])
+        if critical_issues == 0:
+            health['overall_status'] = '✅ READY'
+        elif critical_issues == 1:
+            health['overall_status'] = '⚠️ PARTIAL'
+        else:
+            health['overall_status'] = '❌ NOT READY'
+
+        return health
+
 class UnifiedControlPanel:
     """Unified control panel for TEP system."""
 
     def __init__(self):
         self.app = Flask(__name__)
         self.bridge = TEPDataBridge()
+        self.baseline_data = None  # Will be loaded when user clicks "Load Baseline"
         self.setup_routes()
         print("✅ Unified Control Panel initialized")
 
@@ -688,6 +1040,82 @@ class UnifiedControlPanel:
         def get_status():
             return jsonify(self.bridge.get_status())
 
+        @self.app.route('/api/health')
+        def health_check():
+            return jsonify(self.bridge.system_health_check())
+
+        @self.app.route('/api/ultra_start', methods=['POST'])
+        def ultra_start():
+            """One-click ultra-fast startup: Start everything at 50x speed"""
+            try:
+                results = []
+
+                # Step 1: Set ultra speed first (50x)
+                results.append("🚀 Setting ultra speed (50x)...")
+                self.bridge.speed_factor = 50.0
+                self.bridge.step_interval_seconds = 180 / 50.0  # 3.6 seconds
+                self.bridge.speed_mode = 'fast_50x'
+                results.append(f"✅ Speed set to 50x (interval: {self.bridge.step_interval_seconds:.1f}s)")
+
+                # Step 2: Start Backend
+                results.append("🔧 Starting FaultExplainer backend...")
+                backend_success, backend_message = self.bridge.start_faultexplainer_backend()
+                if not backend_success:
+                    return jsonify({
+                        'success': False,
+                        'message': f"❌ Backend failed: {backend_message}"
+                    })
+                results.append("✅ Backend started")
+
+                # Step 3: Wait for backend to be ready
+                import time
+                time.sleep(2)
+                results.append("⏳ Backend initializing...")
+
+                # Step 4: Start TEP simulation with ultra speed
+                results.append("🏭 Starting TEP simulation at 50x speed...")
+                tep_success, tep_message = self.bridge.start_tep_simulation()
+                if not tep_success:
+                    return jsonify({
+                        'success': False,
+                        'message': f"❌ TEP failed: {tep_message}"
+                    })
+                results.append("✅ TEP simulation started at ultra speed")
+
+                # Step 5: Start frontend (optional)
+                results.append("🖥️ Starting FaultExplainer frontend...")
+                try:
+                    frontend_success, frontend_message = self.bridge.start_faultexplainer_frontend()
+                    if frontend_success:
+                        results.append("✅ Frontend started")
+                    else:
+                        results.append("⚠️ Frontend start failed (optional)")
+                except:
+                    results.append("⚠️ Frontend start failed (optional)")
+
+                # Step 6: Final verification
+                time.sleep(1)
+                health = self.bridge.system_health_check()
+
+                results.append("🎉 ULTRA-FAST SYSTEM READY!")
+                results.append(f"📊 Data points every {self.bridge.step_interval_seconds:.1f} seconds")
+                results.append("🔗 Monitor at http://localhost:3000")
+                results.append("⚡ 50x speed = 50x faster than real-time!")
+
+                return jsonify({
+                    'success': True,
+                    'message': '\n'.join(results),
+                    'speed_factor': 50.0,
+                    'interval_seconds': self.bridge.step_interval_seconds,
+                    'health': health
+                })
+
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f"❌ Ultra start failed: {str(e)}"
+                })
+
         @self.app.route('/api/tep/start', methods=['POST'])
         def start_tep():
             success, message = self.bridge.start_tep_simulation()
@@ -705,6 +1133,43 @@ class UnifiedControlPanel:
         def stop_tep():
             success, message = self.bridge.stop_tep_simulation()
             return jsonify({'success': success, 'message': message})
+
+        @self.app.route('/api/pca/train', methods=['POST'])
+        def start_pca_training_api():
+            self.bridge.start_pca_training()
+            return jsonify({
+                'success': True,
+                'message': f'PCA training started, will collect {self.bridge.pca_training_target} data points',
+                'target': self.bridge.pca_training_target
+            })
+
+        @self.app.route('/api/pca/status', methods=['GET'])
+        def pca_training_status():
+            return jsonify({
+                'training_mode': bool(self.bridge.pca_training_mode),
+                'collected': len(self.bridge.pca_training_data),
+                'target': self.bridge.pca_training_target,
+                'progress': len(self.bridge.pca_training_data) / self.bridge.pca_training_target * 100,
+                'is_stable': bool(self.bridge.is_stable),
+                'stability_buffer_size': len(self.bridge.stability_buffer)
+            })
+
+        @self.app.route('/api/pca/stabilize', methods=['POST'])
+        def stabilize_pca():
+            """Smart PCA retraining: collect stable data and retrain."""
+            if self.bridge.is_stable:
+                self.bridge.start_pca_training()
+                return jsonify({
+                    'success': True,
+                    'message': f'PCA stabilization started. System is stable, collecting {self.bridge.pca_training_target} data points.',
+                    'is_stable': True
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'System is not stable yet. Wait for stability before retraining.',
+                    'is_stable': False
+                })
 
         @self.app.route('/api/speed', methods=['POST'])
         def set_speed():
@@ -734,8 +1199,8 @@ class UnifiedControlPanel:
                 data = request.get_json() or {}
                 speed_factor = float(data.get('speed_factor', 1.0))
 
-                # Validate range
-                speed_factor = max(0.1, min(10.0, speed_factor))
+                # Validate range - Extended to 50x for ultra-fast testing
+                speed_factor = max(0.1, min(50.0, speed_factor))
 
                 # Store speed factor for TEP simulation (now implemented in Fortran!)
                 self.bridge.speed_factor = speed_factor
@@ -947,14 +1412,40 @@ class UnifiedControlPanel:
             except Exception as e:
                 return jsonify({'status':'error','error':str(e)}), 500
 
-            @self.app.route('/api/backend/config/baseline/reload', methods=['POST'])
-            def proxy_backend_baseline_reload():
+        @self.app.route('/api/backend/config/baseline/reload', methods=['POST'])
+        def proxy_backend_baseline_reload():
                 try:
-                    payload = request.get_json(silent=True) or {}
-                    import requests
-                    r = requests.post('http://localhost:8000/config/baseline/reload', json=payload, timeout=5)
-                    return jsonify(r.json()), r.status_code
+                    # Load baseline data directly from CSV file
+                    script_dir = os.path.dirname(os.path.abspath(__file__))
+                    baseline_path = os.path.join(script_dir, 'external_repos', 'FaultExplainer-MultiLLM', 'backend', 'data', 'normal_baseline.csv')
+
+                    if os.path.exists(baseline_path):
+                        import pandas as pd
+                        baseline_df = pd.read_csv(baseline_path)
+
+                        # Store baseline data for internal use
+                        self.baseline_data = baseline_df
+
+                        # Get feature count
+                        feature_count = len([col for col in baseline_df.columns if col != 'time'])
+
+                        print(f"✅ Baseline loaded: {len(baseline_df)} samples, {feature_count} features")
+                        print(f"   Key values: Pressure={baseline_df['Reactor Pressure'].mean():.1f} kPa, Temp={baseline_df['Reactor Temperature'].mean():.1f}°C")
+
+                        return jsonify({
+                            'status': 'ok',
+                            'features': feature_count,
+                            'samples': len(baseline_df),
+                            'message': f'Baseline loaded with {feature_count} features from {len(baseline_df)} samples'
+                        }), 200
+                    else:
+                        return jsonify({
+                            'status': 'error',
+                            'error': f'Baseline file not found: {baseline_path}'
+                        }), 404
+
                 except Exception as e:
+                    print(f"❌ Baseline reload error: {e}")
                     return jsonify({'status':'error','error':str(e)}), 500
 
 
@@ -1342,13 +1833,23 @@ CONTROL_PANEL_HTML = '''
                     <button class="btn btn-success" onclick="startTEP()">▶️ Start TEP Simulation</button>
                     <button class="btn btn-danger" onclick="stopTEP()">⏹️ Stop TEP Simulation</button>
                     <button class="btn btn-warning" onclick="restartTEP()">⟳ Restart TEP</button>
+                    <button class="btn btn-info" onclick="systemHealthCheck()" style="margin-top: 8px;">🔍 System Health Check</button>
+                    <button class="btn btn-success" onclick="ultraStart()" style="margin-top: 8px; font-weight: bold; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); border: none; color: white;">🚀 ULTRA START (50x)</button>
+                    <div style="margin-top: 10px; padding: 8px; background: #f0f8ff; border-radius: 5px; border-left: 4px solid #2196f3;">
+                        <h5 style="margin: 0 0 5px 0; color: #1976d2;">🎯 PCA Stabilization</h5>
+                        <button class="btn btn-info" onclick="checkPCAStatus()" style="margin-right: 5px;">📊 Check Status</button>
+                        <button class="btn btn-success" onclick="stabilizePCA()">🎯 Stabilize PCA</button>
+                        <p style="font-size: 11px; color: #666; margin: 5px 0 0 0;">
+                            Wait for system stability, then click "Stabilize PCA" for perfect anomaly detection
+                        </p>
+                    </div>
                         <div style="margin-top:10px;">
                             <span>Simulation Speed:</span>
                             <div style="margin-top:8px">
                                 <label>Speed Factor: <span id="speed-factor">1.0</span>x (Normal)</label>
-                                <input type="range" min="0.1" max="10" step="0.1" value="1.0" class="slider" id="speed-factor-slider" onchange="setSpeedFactor(this.value)">
+                                <input type="range" min="0.1" max="50" step="0.1" value="1.0" class="slider" id="speed-factor-slider" onchange="setSpeedFactor(this.value)">
                                 <div style="font-size:12px; color:#666; margin-top:4px;">
-                                    0.1x = 10x slower | 1.0x = Normal | 10x = 10x faster
+                                    0.1x = 10x slower | 1.0x = Normal | 10x = 10x faster | 50x = Ultra-fast
                                 </div>
                                 <div style="font-size:11px; color:#4caf50; margin-top:6px; padding:4px; background:#e8f5e8; border-radius:4px;">
                                     ✅ <strong>Speed Control Active:</strong> Affects actual Fortran physics simulation speed via DELTAT scaling

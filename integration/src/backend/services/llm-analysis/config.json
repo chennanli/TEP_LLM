@@ -13,9 +13,9 @@
       "enabled": true
     },
     "gemini": {
-      "api_key": "YOUR_GEMINI_API_KEY_HERE",
+      "api_key": "YOUR_GOOGLE_API_KEY_HERE",
       "model_name": "gemini-1.5-pro",
-      "enabled": false
+      "enabled": true
     }
   },
   "analysis": {
@@ -25,7 +25,7 @@
     "pca_components": 10
   },
   "lmstudio": {
-    "enabled": false,
+    "enabled": true,
     "base_url": "http://localhost:1234/v1",
     "model_name": "mistral-small",
     "api_key": "not-needed"

@@ -43,7 +43,7 @@
 | Stripper liquid load | 35 - 55 | % | 🚨 Yes | Critical stripper control |
 | Stripper steam valve | 40 - 60 | % | No | Steam valve position |
 | Reactor coolant load | 35 - 55 | % | 🚨 Yes | Critical cooling control |
-| Condenser coolant load | 30 - 50 | % | No | Condenser cooling |
+| Condenser coolant load | 14 - 22 | % | No | Condenser cooling |
 
 ## 🎯 **Plot Ordering Priority**
 

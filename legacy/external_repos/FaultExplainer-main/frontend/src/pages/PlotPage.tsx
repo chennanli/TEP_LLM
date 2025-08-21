@@ -45,7 +45,7 @@ const TEP_RANGES: Record<string, { min: number; max: number; unit: string; criti
   "Stripper liquid load": { min: 35, max: 55, unit: "%", critical: true },
   "Stripper steam valve": { min: 40, max: 60, unit: "%", critical: false },
   "Reactor coolant load": { min: 35, max: 55, unit: "%", critical: true },
-  "Condenser coolant load": { min: 30, max: 50, unit: "%", critical: false },
+  "Condenser coolant load": { min: 14, max: 22, unit: "%", critical: false },
 };
 
 export default function DataPage() {

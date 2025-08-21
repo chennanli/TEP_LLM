@@ -76,6 +76,10 @@ class TEPDataBridge:
         self.speed_mode = 'real'  # 'demo' or 'real'
         self.current_preset = None  # 'demo' or 'real'
 
+        # NEW: True simulation acceleration
+        self.simulation_speed_factor = 1.0  # 1.0 = normal, 5.0 = 5x faster
+        self.use_accelerated_simulation = True  # Use TEMAIN_ACCELERATED when available
+
         # Process management
         self.processes = {}
 
@@ -170,7 +174,7 @@ class TEPDataBridge:
         return False
 
     def run_tep_simulation_step(self):
-        """Run one TEP simulation step (3 minutes)."""
+        """Run one TEP simulation step (3 minutes) with optional acceleration."""
         try:
             if not self.tep2py:
                 return None
@@ -180,9 +184,43 @@ class TEPDataBridge:
             import numpy as _np2
             idv_matrix = _np2.array(list(self.idv_history)).reshape(-1, 20)
 
-            # Run TEP simulation for the whole history and take the latest row
-            tep_sim = self.tep2py.tep2py(idv_matrix)
-            tep_sim.simulate()
+            # NEW: Try to use accelerated simulation if available
+            if self.use_accelerated_simulation and self.simulation_speed_factor > 1.0:
+                try:
+                    # Use direct temain_mod call with acceleration
+                    import temain_mod
+                    npts = 60 * 3 * idv_matrix.shape[0]  # Same calculation as tep2py
+                    nx = idv_matrix.shape[0]
+
+                    print(f"🚀 Using TEMAIN_ACCELERATED with {self.simulation_speed_factor}x speed")
+                    result = temain_mod.temain_accelerated(npts, nx, idv_matrix, 0, self.simulation_speed_factor)
+
+                    # Convert to tep2py-like format
+                    import pandas as pd
+                    names = (
+                        ["XMEAS({:})".format(i) for i in range(1,41+1)]
+                        + ["XMV({:})".format(i) for i in range(1,11+1)]
+                    )
+                    datetime_index = _np2.arange(0, 3*nx, 3, dtype='datetime64[m]')
+                    process_data = pd.DataFrame(result, columns=names, index=datetime_index)
+
+                    # Create mock tep_sim object
+                    class MockTepSim:
+                        def __init__(self, data):
+                            self.process_data = data
+
+                    tep_sim = MockTepSim(process_data)
+                    print(f"✅ Accelerated simulation completed ({self.simulation_speed_factor}x faster)")
+
+                except Exception as e:
+                    print(f"⚠️ Accelerated simulation failed, falling back to normal: {e}")
+                    # Fall back to normal simulation
+                    tep_sim = self.tep2py.tep2py(idv_matrix)
+                    tep_sim.simulate()
+            else:
+                # Use normal tep2py simulation
+                tep_sim = self.tep2py.tep2py(idv_matrix)
+                tep_sim.simulate()
 
             if hasattr(tep_sim, 'process_data'):
                 # Get latest data point
@@ -600,6 +638,9 @@ class TEPDataBridge:
             'backend_running': self.check_process_status('faultexplainer_backend'),
             'frontend_running': self.check_process_status('faultexplainer_frontend'),
             'bridge_running': self.check_process_status('tep_bridge'),
+            # NEW: True simulation acceleration status
+            'simulation_speed_factor': getattr(self, 'simulation_speed_factor', 1.0),
+            'use_accelerated_simulation': getattr(self, 'use_accelerated_simulation', False),
             'idv_values': self.idv_values.tolist()
         }
 
@@ -665,6 +706,25 @@ class UnifiedControlPanel:
                 self.bridge.step_interval_seconds = 180
                 self.bridge.speed_mode = 'real'
             return jsonify({'success': True, 'mode': self.bridge.speed_mode, 'step_interval_seconds': self.bridge.step_interval_seconds})
+
+        @self.app.route('/api/simulation_speed', methods=['POST'])
+        def set_simulation_speed():
+            """Set true simulation acceleration factor."""
+            data = request.get_json(silent=True) or {}
+            try:
+                speed_factor = float(data.get('speed_factor', 1.0))
+                speed_factor = max(1.0, min(10.0, speed_factor))  # Limit to 1x-10x
+
+                self.bridge.simulation_speed_factor = speed_factor
+                self.bridge.use_accelerated_simulation = speed_factor > 1.0
+
+                return jsonify({
+                    'success': True,
+                    'simulation_speed_factor': self.bridge.simulation_speed_factor,
+                    'use_accelerated_simulation': self.bridge.use_accelerated_simulation
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)})
 
         @self.app.route('/api/idv/set', methods=['POST'])
         def set_idv():
@@ -1056,7 +1116,8 @@ CONTROL_PANEL_HTML = '''
                     <p id="tep-status">Stopped</p>
                     <p>Step: <span id="tep-step">0</span></p>
                 </div>
-                    <p>Speed: <span id="speed-mode">Real (180s)</span></p>
+                    <p>Loop Speed: <span id="speed-mode">Real (180s)</span></p>
+                    <p>Sim Speed: <span id="sim-speed-status">1.0x</span></p>
                     <p>Preset: <span id="preset-mode">None</span></p>
 
                 <div class="status-card status-stopped">
@@ -1096,13 +1157,23 @@ CONTROL_PANEL_HTML = '''
                     <button class="btn btn-success" onclick="startTEP()">▶️ Start TEP Simulation</button>
                     <button class="btn btn-danger" onclick="stopTEP()">⏹️ Stop TEP Simulation</button>
                         <div style="margin-top:10px;">
-                            <span>Speed:</span>
+                            <span>Loop Speed:</span>
                             <button id="btn-speed-demo" class="btn" onclick="setSpeed('demo')">Demo (1s)</button>
                             <button id="btn-speed-real" class="btn" onclick="setSpeed('real')">Real (3min)</button>
                             <div style="margin-top:8px">
                                 <label>Demo interval: <span id="demo-interval">1</span>s</label>
                                 <input type="range" min="1" max="10" step="1" value="1" class="slider" id="demo-interval-slider" onchange="setDemoInterval(this.value)">
                             </div>
+                        </div>
+                        <div style="margin-top:10px; border-top:1px solid #ddd; padding-top:10px;">
+                            <span>🚀 Simulation Acceleration:</span>
+                            <div style="margin-top:8px">
+                                <label>Speed Factor: <span id="sim-speed-factor">1.0</span>x</label>
+                                <input type="range" min="1" max="10" step="0.5" value="1" class="slider" id="sim-speed-slider" onchange="setSimulationSpeed(this.value)">
+                            </div>
+                            <p style="font-size:12px;color:#666;margin-top:4px;">
+                                True physics acceleration - makes each simulation step run faster
+                            </p>
                         </div>
                         <div style="margin-top:10px;">
                             <button id="btn-preset-demo" class="btn" onclick="setPreset('demo')">Set Backend Preset: Demo</button>
@@ -1279,6 +1350,29 @@ CONTROL_PANEL_HTML = '''
         }, 500);
 
         // All functions are in external JS file - no inline functions needed
+
+        // NEW: Simulation acceleration control
+        function setSimulationSpeed(speedFactor) {
+            document.getElementById('sim-speed-factor').textContent = speedFactor;
+
+            // Send to backend
+            fetch('/api/simulation_speed', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({speed_factor: parseFloat(speedFactor)})
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    console.log('Simulation speed set to', speedFactor + 'x');
+                } else {
+                    console.error('Failed to set simulation speed:', data.error);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error setting simulation speed:', error);
+            });
+        }
 
         // Tab switching function
         function showTab(tabName) {

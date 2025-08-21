@@ -33,6 +33,72 @@ function testFunction() {
     showMessage('Test function works!', 'success');
 }
 
+// PCA Stabilization Functions
+function checkPCAStatus() {
+    console.log('Checking PCA status...');
+    fetch('/api/pca/status')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            console.log('PCA Status:', data);
+            var statusText = 'PCA Status: ';
+            if (data.training_mode) {
+                statusText += 'Training (' + data.collected + '/' + data.target + ')';
+            } else if (data.is_stable) {
+                statusText += 'System Stable - Ready for Retraining';
+            } else {
+                statusText += 'System Stabilizing...';
+            }
+            showMessage(statusText, data.is_stable ? 'success' : 'info');
+        })
+        .catch(function(error) {
+            console.error('PCA status check failed:', error);
+            showMessage('PCA status check failed', 'error');
+        });
+}
+
+function stabilizePCA() {
+    console.log('Starting PCA stabilization...');
+    showMessage('Checking system stability...', 'info');
+
+    fetch('/api/pca/stabilize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        console.log('PCA Stabilization Response:', data);
+        if (data.success) {
+            showMessage(data.message, 'success');
+            // Start monitoring progress
+            setTimeout(monitorPCAProgress, 2000);
+        } else {
+            showMessage(data.message, 'error');
+        }
+    })
+    .catch(function(error) {
+        console.error('PCA stabilization failed:', error);
+        showMessage('PCA stabilization failed', 'error');
+    });
+}
+
+function monitorPCAProgress() {
+    fetch('/api/pca/status')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.training_mode) {
+                var progress = Math.round(data.progress);
+                showMessage('PCA Training: ' + data.collected + '/' + data.target + ' (' + progress + '%)', 'info');
+                // Continue monitoring
+                setTimeout(monitorPCAProgress, 3000);
+            } else {
+                showMessage('PCA Training Complete! System ready for testing.', 'success');
+            }
+        })
+        .catch(function(error) {
+            console.error('PCA progress monitoring failed:', error);
+        });
+}
+
 function showMessage(message, type) {
     console.log('showMessage:', message, type);
     var statusDiv = document.getElementById('status');
@@ -250,7 +316,7 @@ function setSpeed(mode) {
         // Update UI elements
         var speedModeEl = document.getElementById('speed-mode');
         if (speedModeEl) {
-            speedModeEl.textContent = data.mode === 'demo' ? 'Demo (' + data.step_interval_seconds + 's)' : 'Real (180s)';
+            speedModeEl.textContent = data.mode === 'demo' ? 'Demo (' + data.step_interval_seconds + 's)' : 'Real (' + data.step_interval_seconds + 's)';
         }
         var di = document.getElementById('demo-interval');
         if (di) di.textContent = data.step_interval_seconds;
@@ -334,6 +400,24 @@ function updateStatus() {
                 var totalReceived = (data.raw_data_points || 0);
                 liveCount.textContent = 'Received: ' + totalReceived;
             }
+
+            // Update speed display
+            var speedModeEl = document.getElementById('speed-mode');
+            var speedFactorEl = document.getElementById('speed-factor');
+            var speedSlider = document.getElementById('speed-factor-slider');
+
+            if (speedModeEl && data.speed_factor) {
+                var speedText = data.speed_factor + 'x (' + data.step_interval_seconds + 's)';
+                speedModeEl.textContent = speedText;
+            }
+
+            if (speedFactorEl && data.speed_factor) {
+                speedFactorEl.textContent = data.speed_factor;
+            }
+
+            if (speedSlider && data.speed_factor) {
+                speedSlider.value = data.speed_factor;
+            }
         })
         .catch(function(error) { console.error('Status update failed:', error); });
 }
@@ -355,9 +439,8 @@ function initializeApp() {
             statusEl.innerHTML = '<div style="background: green; color: white; padding: 10px;">✅ External JavaScript is WORKING!</div>';
         }
 
-        // Auto-refresh status every 5 seconds
-        setInterval(updateStatus, 5000);
-        updateStatus();
+        // Initialize dynamic updates
+        initializeDynamicUpdates();
 
         // Test if functions are accessible
         console.log('Testing function availability:');
@@ -365,6 +448,7 @@ function initializeApp() {
         console.log('- startBackend:', typeof startBackend);
         console.log('- startFrontend:', typeof startFrontend);
         console.log('- setSpeed:', typeof setSpeed);
+        console.log('- startDynamicStatusUpdates:', typeof startDynamicStatusUpdates);
 
         console.log('✅ External JavaScript initialized successfully');
 
@@ -380,6 +464,45 @@ function initializeApp() {
         }
         alert('Initialization Error: ' + e.message);
     }
+}
+
+// GLOBAL SCOPE: Dynamic refresh rate based on simulation speed
+var statusUpdateInterval = null;
+
+function startDynamicStatusUpdates() {
+    // Clear existing interval
+    if (statusUpdateInterval) {
+        clearInterval(statusUpdateInterval);
+    }
+
+    // Get current speed factor from backend
+    fetch('/api/status')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            var speedFactor = data.speed_factor || 1.0;
+            var baseInterval = 5000; // 5 seconds default
+
+            // Calculate dynamic update rate
+            // For speed > 1x: update more frequently
+            // For speed < 1x: update less frequently
+            var updateRate = Math.max(1000, Math.min(10000, baseInterval / speedFactor));
+
+            console.log('Setting dynamic update rate:', updateRate + 'ms (speed factor: ' + speedFactor + 'x)');
+
+            // Start new interval with dynamic rate
+            statusUpdateInterval = setInterval(updateStatus, updateRate);
+        })
+        .catch(function(e) {
+            console.error('Failed to get speed factor, using default 5s updates:', e);
+            statusUpdateInterval = setInterval(updateStatus, 5000);
+        });
+}
+
+// Initialize dynamic updates when app starts
+function initializeDynamicUpdates() {
+    // Start dynamic updates
+    startDynamicStatusUpdates();
+    updateStatus();
 }
 
 // Multiple initialization methods for Safari compatibility
@@ -466,6 +589,76 @@ function restartTEP() {
         .then(function(r) { return r.json(); })
         .then(function(d) { showMessage(d.message, d.success ? 'success' : 'error'); })
         .catch(function(e) { showMessage('Restart failed: ' + e, 'error'); });
+}
+
+function systemHealthCheck() {
+    console.log('systemHealthCheck() called');
+    showMessage('Checking system health...', 'info');
+
+    fetch('/api/health')
+        .then(function(r) { return r.json(); })
+        .then(function(health) {
+            var message = '🔍 System Health Check:\n\n';
+            message += 'Overall Status: ' + health.overall_status + '\n\n';
+
+            message += 'Components:\n';
+            for (var component in health.components) {
+                message += '• ' + component + ': ' + health.components[component] + '\n';
+            }
+
+            if (health.issues.length > 0) {
+                message += '\nIssues Found:\n';
+                for (var i = 0; i < health.issues.length; i++) {
+                    message += '⚠️ ' + health.issues[i] + '\n';
+                }
+            }
+
+            if (health.recommendations.length > 0) {
+                message += '\nRecommendations:\n';
+                for (var i = 0; i < health.recommendations.length; i++) {
+                    message += '💡 ' + health.recommendations[i] + '\n';
+                }
+            }
+
+            var isReady = health.overall_status.indexOf('✅') !== -1;
+            showMessage(message, isReady ? 'success' : 'error');
+
+            // Also show in alert for better visibility
+            alert(message);
+        })
+        .catch(function(e) {
+            showMessage('Health check failed: ' + e, 'error');
+        });
+}
+
+function ultraStart() {
+    console.log('ultraStart() called - One-click 50x speed startup');
+    showMessage('🚀 Starting ultra-fast system (50x speed)...', 'info');
+
+    fetch('/api/ultra_start', {method: 'POST'})
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            showMessage(data.message, data.success ? 'success' : 'error');
+
+            if (data.success) {
+                // 🔥 CRITICAL FIX: Restart dynamic updates for ultra speed
+                console.log('🔄 Restarting dynamic status updates for ultra speed (50x)');
+                startDynamicStatusUpdates();
+
+                // Force status update to show new speed
+                setTimeout(updateStatus, 1000);
+
+                // Show success alert
+                alert('🎉 ULTRA-FAST SYSTEM READY!\n\n' +
+                      '⚡ Speed: 50x (data every ' + data.interval_seconds.toFixed(1) + 's)\n' +
+                      '📊 Monitor: http://localhost:3000\n' +
+                      '🔥 You should see VERY fast updates now!\n' +
+                      '📱 Frontend will update every ' + Math.max(1, 5/50).toFixed(1) + 's');
+            }
+        })
+        .catch(function(e) {
+            showMessage('Ultra start failed: ' + e, 'error');
+        });
 }
 
 function loadLog(name) {
@@ -773,7 +966,14 @@ function setSpeedFactor(factor) {
     .then(function(r) { return r.json(); })
     .then(function(d) {
         console.log('setSpeedFactor response:', d);
-        showMessage('Speed factor set to ' + speedFactor + 'x', 'success');
+        showMessage('Speed factor set to ' + speedFactor + 'x (interval: ' + d.step_interval_seconds + 's)', 'success');
+
+        // 🔥 CRITICAL FIX: Restart dynamic updates with new speed
+        console.log('🔄 Restarting dynamic status updates for new speed factor:', speedFactor);
+        startDynamicStatusUpdates();
+
+        // Force immediate status update
+        setTimeout(updateStatus, 500);
     })
     .catch(function(e) {
         console.error('setSpeedFactor error:', e);

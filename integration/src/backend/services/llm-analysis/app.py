@@ -645,7 +645,86 @@ async def update_alpha(payload: Dict[str, Any] = Body(...)):
 
 @app.get("/status")
 def status():
-    return {"running": True}
+    return {
+        "running": True,
+        "backend_running": True,
+        "simulation_speed_factor": _simulation_speed_factor,
+        "simulation_running": _simulation_running,
+        "llm_enabled": True,
+        "aggregated_count": _aggregated_count,
+        "live_buffer_size": len(live_buffer)
+    }
+
+# Global simulation control variables
+_simulation_speed_factor = 1.0
+_simulation_running = False
+
+@app.post("/api/simulation_speed")
+async def set_simulation_speed(payload: Dict[str, Any] = Body(...)):
+    """Set simulation acceleration factor"""
+    global _simulation_speed_factor
+    try:
+        speed_factor = float(payload.get("speed_factor", 1.0))
+        speed_factor = max(1.0, min(10.0, speed_factor))  # Limit to 1x-10x
+
+        _simulation_speed_factor = speed_factor
+
+        return {
+            "success": True,
+            "simulation_speed_factor": _simulation_speed_factor,
+            "use_accelerated_simulation": _simulation_speed_factor > 1.0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/simulation/start")
+async def start_simulation():
+    """Start TEP simulation"""
+    global _simulation_running
+    try:
+        _simulation_running = True
+        return {"success": True, "message": "Simulation started"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/simulation/stop")
+async def stop_simulation():
+    """Stop TEP simulation"""
+    global _simulation_running
+    try:
+        _simulation_running = False
+        return {"success": True, "message": "Simulation stopped"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/stop/all")
+async def stop_all_tasks():
+    """Stop all LLM analysis tasks and simulation"""
+    global _simulation_running
+    try:
+        # Stop simulation
+        _simulation_running = False
+
+        # Stop all LLM tasks
+        result = multi_llm_client.stop_all_tasks()
+
+        # Reset stop flag after a moment to allow new requests
+        import asyncio
+        async def reset_stop_flag():
+            await asyncio.sleep(2)
+            multi_llm_client.stop_requested = False
+            print("🔄 LLM client ready for new requests")
+
+        asyncio.create_task(reset_stop_flag())
+
+        return {
+            "success": True,
+            "message": "All tasks stopped",
+            "llm_result": result,
+            "simulation_stopped": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/analysis/history")
 def analysis_history(limit: int = 10):

@@ -17,7 +17,9 @@ class MultiLLMClient:
         self.config = config
         self.clients = {}
         self.enabled_models = []
-        
+        self.active_tasks = set()  # Track active LLM tasks
+        self.stop_requested = False  # Global stop flag
+
         # Initialize enabled clients
         for model_name, model_config in config["models"].items():
             if model_config.get("enabled", False):
@@ -28,8 +30,14 @@ class MultiLLMClient:
                     self.clients[model_name] = self._init_gemini(model_config)
                 elif model_name == "anthropic":
                     self.clients[model_name] = self._init_claude(model_config)
-        
+
         print(f"✅ Initialized LLM clients: {self.enabled_models}")
+
+    def stop_all_tasks(self):
+        """Stop all active LLM tasks"""
+        print("🛑 Stopping all LLM tasks...")
+        self.stop_requested = True
+        return {"success": True, "message": f"Stopping {len(self.active_tasks)} active tasks"}
     
     def _init_lmstudio(self, config: Dict[str, Any]) -> OpenAI:
         """Initialize LMStudio client"""
@@ -49,38 +57,55 @@ class MultiLLMClient:
     
     async def get_analysis_from_all_models(self, system_message: str, user_prompt: str) -> Dict[str, Dict[str, Any]]:
         """Get fault analysis from all enabled models"""
+        if self.stop_requested:
+            print("🛑 Analysis cancelled - stop requested")
+            return {"cancelled": {"response": "Analysis cancelled by user", "status": "cancelled"}}
+
         results = {}
-        
-        for model_name in self.enabled_models:
-            try:
-                start_time = time.time()
-                print(f"🤖 Querying {model_name}...")
-                
-                if model_name == "lmstudio":
-                    response = await self._query_lmstudio(system_message, user_prompt)
-                elif model_name == "gemini":
-                    response = await self._query_gemini(system_message, user_prompt)
-                elif model_name == "anthropic":
-                    response = await self._query_claude(system_message, user_prompt)
-                
-                end_time = time.time()
-                
-                results[model_name] = {
-                    "response": response,
-                    "response_time": round(end_time - start_time, 2),
-                    "status": "success"
-                }
-                print(f"✅ {model_name} completed in {results[model_name]['response_time']}s")
-                
-            except Exception as e:
-                results[model_name] = {
-                    "response": f"Error: {str(e)}",
-                    "response_time": 0,
-                    "status": "error"
-                }
-                print(f"❌ {model_name} failed: {str(e)}")
-        
-        return results
+        task_id = f"analysis_{int(time.time() * 1000)}"
+        self.active_tasks.add(task_id)
+
+        try:
+            for model_name in self.enabled_models:
+                if self.stop_requested:
+                    print(f"🛑 Stopping {model_name} - stop requested")
+                    break
+
+                try:
+                    start_time = time.time()
+                    print(f"🤖 Querying {model_name}...")
+
+                    if model_name == "lmstudio":
+                        response = await self._query_lmstudio(system_message, user_prompt)
+                    elif model_name == "gemini":
+                        response = await self._query_gemini(system_message, user_prompt)
+                    elif model_name == "anthropic":
+                        response = await self._query_claude(system_message, user_prompt)
+
+                    if self.stop_requested:
+                        print(f"🛑 {model_name} cancelled after completion")
+                        break
+
+                    end_time = time.time()
+
+                    results[model_name] = {
+                        "response": response,
+                        "response_time": round(end_time - start_time, 2),
+                        "status": "success"
+                    }
+                    print(f"✅ {model_name} completed in {results[model_name]['response_time']}s")
+
+                except Exception as e:
+                    results[model_name] = {
+                        "response": f"Error: {str(e)}",
+                        "response_time": 0,
+                        "status": "error"
+                    }
+                    print(f"❌ {model_name} failed: {str(e)}")
+
+            return results
+        finally:
+            self.active_tasks.discard(task_id)
     
     async def _query_lmstudio(self, system_message: str, user_prompt: str) -> str:
         """Query LMStudio with timeout and retry logic"""
@@ -93,7 +118,7 @@ class MultiLLMClient:
 
         # Retry logic for LMStudio (can get stuck)
         max_retries = 2
-        timeout = 120  # 2 minutes timeout
+        timeout = 30  # 30 seconds timeout (reduced from 120)
 
         for attempt in range(max_retries):
             try:

@@ -90,6 +90,41 @@ This directory contains detailed conversation summaries for future AI reference 
 - **Impact:** Critical control system understanding and thermodynamic validation
 - **Status:** Complete analysis documented, fixes implemented
 
-**Last Updated:** August 19, 2025
-**Total Conversations:** 2
-**Status:** Active archive for AI knowledge transfer
+---
+
+### **2025-08-21: TEP Data Stability Investigation**
+- **File:** `2025-08-21_TEP_Data_Stability_Investigation.md`
+- **Participants:** User + Augment Agent
+- **Key Topics:**
+  - 🚨 Critical data integrity issue identified (400%+ variations)
+  - ❌ AI incorrectly manufactured artificial stable data
+  - 🔍 Root cause: Fortran simulation restarting from non-steady conditions
+  - ⚠️ PCA anomaly detection compromised by fake data
+  - 🎯 Need for genuine Fortran simulation continuity solution
+- **Expert Level:** Requires Fortran/Python/Chemical Engineering expertise
+- **Impact:** System producing artificial data instead of real simulation
+- **Status:** Critical issue requiring complete rework by domain expert
+
+### **Key Technical Issues from 2025-08-21:**
+
+#### **Critical Problems Identified:**
+1. **Data Integrity Failure**: TEP simulation data showing 400%+ step-to-step variations
+2. **Artificial Data Manufacturing**: AI created fake stable data by reusing same data point
+3. **Simulation Continuity**: Each step restarts Fortran from non-steady initial conditions
+4. **PCA Compromise**: Anomaly detection working on manufactured data, not real simulation
+
+#### **Evidence of Artificial Data:**
+- All CSV data points identical: `XMEAS_1: 0.015024138110108942` (exact same value)
+- Terminal logs show: `♻️ Continuing from stable state` + `⚠️ Using last available point 25`
+- Only first simulation step was genuine Fortran calculation
+
+#### **Expert Handoff Requirements:**
+- Fix Fortran simulation state continuity (primary solution)
+- OR adapt PCA to handle genuine dynamic data (secondary solution)
+- Remove all artificial data smoothing/manufacturing
+- Maintain 10x acceleration capability (currently working)
+- Ensure PCA works with realistic process variations
+
+**Last Updated:** August 21, 2025
+**Total Conversations:** 3
+**Status:** Active archive for AI knowledge transfer - URGENT EXPERT INTERVENTION NEEDED

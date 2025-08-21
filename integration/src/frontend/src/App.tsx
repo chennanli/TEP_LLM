@@ -500,16 +500,8 @@ export default function App() {
 
         setComparativeResults(comparativeData);
 
-        // Also add to conversation for backward compatibility
-        const summaryMessage: ChatMessage = {
-          id: id,
-          role: "assistant",
-          text: `🤖 **Multi-LLM Analysis Completed**\n\n**Models Used:** ${Object.keys(comparativeData.llm_analyses).join(", ")}\n\n**Analysis Time:** ${comparativeData.timestamp}\n\n*View the Comparative Analysis tab for detailed results.*`,
-          images: [],
-          explanation: true,
-        };
-
-        setConversation((prevMessages) => [...prevMessages, summaryMessage]);
+        // Note: Removed automatic addition to conversation to avoid cluttering Assistant page
+        // Users can view results in the Multi-LLM Analysis tab and Unified Console
       } else {
         console.error("❌ Error response from server:", response.status);
         throw new Error(`Server error: ${response.status}`);

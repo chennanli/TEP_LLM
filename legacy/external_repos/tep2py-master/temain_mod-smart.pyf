@@ -809,6 +809,104 @@ python module temain_mod ! in
             common /ctrl20/ gain20,taui20,errold20
             common /ctrl22/ gain22,taui22,errold22
         end subroutine temain_with_speed
+        subroutine temain_true_speed(npts,nx,idata,xdata,verbose,speed_factor) ! in :temain_mod:src/tep/temain_mod.f
+            integer, intent(in) :: npts
+            integer, intent(in) :: nx
+            integer dimension(nx,20), intent(in), depend(nx) :: idata
+            double precision dimension(nx,52),depend(nx), intent(out) :: xdata
+            integer, intent(in) :: verbose
+            double precision, intent(in) :: speed_factor
+        end subroutine temain_true_speed
+        subroutine temain_accelerated(npts,nx,idata,xdata,verbose,speed_factor) ! in :temain_mod:src/tep/temain_mod.f
+            integer, intent(in) :: npts
+            integer, intent(in) :: nx
+            integer dimension(nx,20), intent(in), depend(nx) :: idata
+            double precision dimension(nx,52),depend(nx), intent(out) :: xdata
+            integer, intent(in) :: verbose
+            double precision, intent(in) :: speed_factor
+            double precision dimension(41) :: xmeas
+            double precision dimension(12) :: xmv
+            integer dimension(20) :: idv
+            double precision dimension(20) :: setpt
+            double precision :: deltat
+            integer :: flag
+            double precision :: gain1
+            double precision :: errold1
+            double precision :: gain2
+            double precision :: errold2
+            double precision :: gain3
+            double precision :: errold3
+            double precision :: gain4
+            double precision :: errold4
+            double precision :: gain5
+            double precision :: taui5
+            double precision :: errold5
+            double precision :: gain6
+            double precision :: errold6
+            double precision :: gain7
+            double precision :: errold7
+            double precision :: gain8
+            double precision :: errold8
+            double precision :: gain9
+            double precision :: errold9
+            double precision :: gain10
+            double precision :: taui10
+            double precision :: errold10
+            double precision :: gain11
+            double precision :: taui11
+            double precision :: errold11
+            double precision :: gain13
+            double precision :: taui13
+            double precision :: errold13
+            double precision :: gain14
+            double precision :: taui14
+            double precision :: errold14
+            double precision :: gain15
+            double precision :: taui15
+            double precision :: errold15
+            double precision :: gain16
+            double precision :: taui16
+            double precision :: errold16
+            double precision :: gain17
+            double precision :: taui17
+            double precision :: errold17
+            double precision :: gain18
+            double precision :: taui18
+            double precision :: errold18
+            double precision :: gain19
+            double precision :: taui19
+            double precision :: errold19
+            double precision :: gain20
+            double precision :: taui20
+            double precision :: errold20
+            double precision :: gain22
+            double precision :: taui22
+            double precision :: errold22
+            common /pv/ xmeas,xmv
+            common /dvec/ idv
+            common /ctrlall/ setpt,deltat
+            common /flag6/ flag
+            common /ctrl1/ gain1,errold1
+            common /ctrl2/ gain2,errold2
+            common /ctrl3/ gain3,errold3
+            common /ctrl4/ gain4,errold4
+            common /ctrl5/ gain5,taui5,errold5
+            common /ctrl6/ gain6,errold6
+            common /ctrl7/ gain7,errold7
+            common /ctrl8/ gain8,errold8
+            common /ctrl9/ gain9,errold9
+            common /ctrl10/ gain10,taui10,errold10
+            common /ctrl11/ gain11,taui11,errold11
+            common /ctrl13/ gain13,taui13,errold13
+            common /ctrl14/ gain14,taui14,errold14
+            common /ctrl15/ gain15,taui15,errold15
+            common /ctrl16/ gain16,taui16,errold16
+            common /ctrl17/ gain17,taui17,errold17
+            common /ctrl18/ gain18,taui18,errold18
+            common /ctrl19/ gain19,taui19,errold19
+            common /ctrl20/ gain20,taui20,errold20
+            common /ctrl22/ gain22,taui22,errold22
+        end subroutine temain_accelerated
     end interface
 end python module temain_mod
 

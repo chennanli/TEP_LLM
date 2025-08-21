@@ -5,7 +5,7 @@
   "pca_window_size": 20,
   "decimation_N": 1,
   "llm_min_interval_seconds": 30,
-  "anomaly_threshold": 0.01,
+  "anomaly_threshold": 0.05,
   "models": {
     "anthropic": {
       "api_key": "YOUR_ANTHROPIC_API_KEY_HERE",
@@ -15,12 +15,28 @@
       "description": "High-quality analysis with API costs"
     },
     "gemini": {
-      "api_key": "YOUR_GEMINI_API_KEY_HERE",
+      "api_key": "YOUR_GOOGLE_API_KEY_HERE",
       "model_name": "gemini-1.5-pro",
       "enabled": true,
       "premium": true,
       "description": "Alternative premium analysis option"
+    },
+    "lmstudio": {
+      "enabled": false,
+      "base_url": "http://localhost:1234/v1",
+      "model_name": "mistralai_mistral-small-3.1-24b-instruct-2503",
+      "api_key": "not-needed",
+      "premium": false,
+      "description": "Local model - no API costs (DISABLED due to timeout issues)"
     }
+  },
+  "lmstudio": {
+    "enabled": false,
+    "base_url": "http://localhost:1234/v1",
+    "model_name": "mistralai_mistral-small-3.1-24b-instruct-2503",
+    "api_key": "not-needed",
+    "premium": false,
+    "description": "Local model - no API costs (DISABLED due to timeout issues)"
   },
   "analysis": {
     "threshold": 0.01,
@@ -28,14 +44,7 @@
     "min_samples": 10,
     "pca_components": 10
   },
-  "lmstudio": {
-    "enabled": true,
-    "base_url": "http://localhost:1234/v1",
-    "model_name": "mistralai_mistral-small-3.1-24b-instruct-2503",
-    "api_key": "not-needed",
-    "premium": false,
-    "description": "Local model - no API costs"
-  },
+
   "logging": {
     "level": "INFO",
     "file": "llm_analysis.log"

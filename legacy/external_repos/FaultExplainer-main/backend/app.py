@@ -439,7 +439,7 @@ async def ingest_live_point(req: IngestRequest):
         result: Dict[str, Any] = {
             "t2_stat": t2,
             "anomaly": bool(is_anom),
-            "threshold": pca_model.t2_threshold,
+            "threshold": float(pca_model.t2_threshold),
             "consecutive_anomalies": _consecutive_anomalies,
             "aggregated_index": _aggregated_count,
         }
@@ -474,39 +474,50 @@ async def ingest_live_point(req: IngestRequest):
                 comparison = build_live_feature_comparison(feature_series)
                 user_prompt = f"{PROMPT_SELECT}\n\nHere are the top six features with values during the fault and normal operation:\n{comparison}"
 
-                llm_results = await multi_llm_client.get_analysis_from_all_models(
-                    system_message=SYSTEM_MESSAGE,
-                    user_prompt=user_prompt,
-                )
-                formatted = multi_llm_client.format_comparative_results(results=llm_results, feature_comparison=comparison)
-                _last_analysis_result = formatted
-                try:
-                    # build a snapshot with an id for persistence
-                    import time as _time
-                    snap = {"id": int(_time.time()*1000), "time": now, **formatted}
-                    _analysis_history.append(snap)
-                    # persist to JSONL
+                # 🔧 FIX: Run LLM analysis in background to avoid blocking /stream endpoint
+                import asyncio
+                async def background_llm_analysis():
                     try:
-                        with open(_history_file, 'a') as f:
-                            import json as _json
-                            f.write(_json.dumps(snap) + "\n")
-                        # also write Markdown lines (append to cumulative + daily file)
+                        logger.info("🤖 Starting background LLM analysis...")
+                        llm_results = await multi_llm_client.get_analysis_from_all_models(
+                            system_message=SYSTEM_MESSAGE,
+                            user_prompt=user_prompt,
+                        )
+                        formatted = multi_llm_client.format_comparative_results(results=llm_results, feature_comparison=comparison)
+                        global _last_analysis_result
+                        _last_analysis_result = formatted
+
+                        # build a snapshot with an id for persistence
+                        import time as _time
+                        snap = {"id": int(_time.time()*1000), "time": now, **formatted}
+                        _analysis_history.append(snap)
+                        # persist to JSONL
                         try:
-                            import time as _time
-                            ts = snap.get("timestamp") or _time.strftime("%Y-%m-%d %H:%M:%S")
-                            md = f"\n## {ts} (id: {snap.get('id')})\n\n" + (snap.get("feature_analysis") or "") + "\n"
-                            with open(_history_md_file, 'a') as mf:
-                                mf.write(md)
-                            day_name = _time.strftime("%Y-%m-%d")
-                            day_path = os.path.join(_history_days_dir, f"{day_name}.md")
-                            with open(day_path, 'a') as df:
-                                df.write(md)
-                        except Exception as _em:
-                            logger.warning("failed to append md history: %s", _em)
-                    except Exception as _e:
-                        logger.warning("failed to append history file: %s", _e)
-                except Exception as _:
-                    _analysis_history.append({"time": now, "summary": formatted.get("summary",""), "results": formatted.get("results",{})})
+                            with open(_history_file, 'a') as f:
+                                import json as _json
+                                f.write(_json.dumps(snap) + "\n")
+                            # also write Markdown lines (append to cumulative + daily file)
+                            try:
+                                import time as _time
+                                ts = snap.get("timestamp") or _time.strftime("%Y-%m-%d %H:%M:%S")
+                                md = f"\n## {ts} (id: {snap.get('id')})\n\n" + (snap.get("feature_analysis") or "") + "\n"
+                                with open(_history_md_file, 'a') as mf:
+                                    mf.write(md)
+                                day_name = _time.strftime("%Y-%m-%d")
+                                day_path = os.path.join(_history_days_dir, f"{day_name}.md")
+                                with open(day_path, 'a') as df:
+                                    df.write(md)
+                            except Exception as _em:
+                                logger.warning("failed to append md history: %s", _em)
+                        except Exception as _e:
+                            logger.warning("failed to append history file: %s", _e)
+                        logger.info("✅ Background LLM analysis completed")
+                    except Exception as e:
+                        logger.error("❌ Background LLM analysis failed: %s", e)
+
+                # Start background task without waiting
+                asyncio.create_task(background_llm_analysis())
+
                 result["llm"] = {"status": "triggered", "top_features": top_features}
                 _consecutive_anomalies = 0
                 _last_llm_trigger_time = now
@@ -660,8 +671,56 @@ async def update_alpha(payload: Dict[str, Any] = Body(...)):
             raise ValueError("alpha must be between 0 and 1")
         pca_model.alpha = new_alpha
         pca_model.set_t2_threshold()
-        return {"status": "ok", "alpha": new_alpha, "t2_threshold": pca_model.t2_threshold}
+        return {"status": "ok", "alpha": new_alpha, "t2_threshold": float(pca_model.t2_threshold)}
     except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/retrain")
+async def retrain_pca(payload: Dict[str, Any] = Body(...)):
+    """Retrain PCA model with new training data."""
+    try:
+        import pandas as pd
+        from model import FaultDetectionModel
+
+        # Get training file path
+        training_file = payload.get("training_file", "live_fault0.csv")
+        training_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", training_file)
+
+        if not os.path.exists(training_path):
+            raise ValueError(f"Training file not found: {training_path}")
+
+        # Load new training data
+        train_df = pd.read_csv(training_path)
+        if "time" in train_df.columns:
+            train_df = train_df.drop(columns=["time"])
+
+        # Validate columns
+        missing_cols = [c for c in FEATURE_COLUMNS if c not in train_df.columns]
+        if missing_cols:
+            raise ValueError(f"Training data missing expected columns: {missing_cols}")
+
+        train_df = train_df[FEATURE_COLUMNS]
+
+        # Create new PCA model
+        global pca_model
+        new_pca_model = FaultDetectionModel(n_components=0.9, alpha=config.get("anomaly_threshold", 0.01))
+        new_pca_model.fit(train_df)
+
+        # Replace global model
+        pca_model = new_pca_model
+
+        print(f"✅ PCA model retrained with {len(train_df)} data points from {training_file}")
+
+        return {
+            "status": "success",
+            "message": f"PCA model retrained with {len(train_df)} data points",
+            "n_components": int(pca_model.pca.n_components_),
+            "t2_threshold": float(pca_model.t2_threshold),
+            "training_file": training_file
+        }
+
+    except Exception as e:
+        print(f"❌ PCA retrain failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/status")
