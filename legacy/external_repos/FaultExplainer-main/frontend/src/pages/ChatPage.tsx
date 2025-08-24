@@ -21,7 +21,8 @@ export default function QuestionsPage() {
     messages: { role: string; content: string }[],
     id: string
   ) {
-    await fetchEventSource("http://localhost:8000/send_message", {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+    await fetchEventSource(`${apiBaseUrl}/send_message`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

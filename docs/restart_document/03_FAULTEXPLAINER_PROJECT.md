@@ -154,7 +154,7 @@ EXPLAIN_ROOT = "Constrained to 15 known root causes"
     "models": {
         "claude": {
             "enabled": true,
-            "api_key": "sk-ant-api03-...",
+            "api_key": "${ANTHROPIC_API_KEY}",
             "model_name": "claude-3-5-sonnet-20241022"
         },
         "lmstudio": {

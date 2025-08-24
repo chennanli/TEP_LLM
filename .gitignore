@@ -49,6 +49,8 @@ ENV/
 # IDE History and Cache
 .vscode/.ropeproject/
 .vscode/settings.json.bak
+.history/
+*.history
 
 # Logs and temporary files
 *.log
@@ -73,8 +75,13 @@ Icon
 *password*
 *credential*
 *.env
+*.env.*
 config.ini
 secrets.json
+
+# All .env files in any location
+**/.env
+**/.env.*
 
 # Configuration files with API keys
 config.json

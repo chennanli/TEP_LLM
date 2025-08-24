@@ -187,7 +187,8 @@ export default function ComparativeLLMResults({ results, isLoading }: Comparativ
   const checkLMStudioHealth = async () => {
     setCheckingHealth(true);
     try {
-      const response = await fetch("http://localhost:8000/health/lmstudio");
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+      const response = await fetch(`${apiBaseUrl}/health/lmstudio`);
       const health = await response.json();
       setLmstudioHealth(health);
     } catch (error) {

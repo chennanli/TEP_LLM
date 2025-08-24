@@ -18,6 +18,12 @@ from collections import deque
 import numpy as np
 import requests
 
+# Add tep2py path for integration system (now using integration's own copy)
+tep2py_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../external_repos/tep2py-master'))
+if tep2py_path not in sys.path:
+    sys.path.insert(0, tep2py_path)
+    print(f"✅ Added tep2py path (integration): {tep2py_path}")
+
 
 def resolve_venv_python():
     """Prefer .venv over tep_env. Return absolute python path for current OS."""
@@ -51,15 +57,18 @@ class TEPDataBridge:
         self.simulation_thread = None
         self.stop_simulation = False
         self.current_step = 0
-        self.idv_values = np.zeros(20)  # IDV_1 to IDV_20
+        self.idv_values = np.zeros(20)  # IDV_1 to IDV_20 (disturbance variables)
+        self.xmv_values = np.array([63.0, 53.0, 24.0, 61.0, 22.0, 40.0, 38.0, 46.0, 47.0, 41.0, 18.0])  # XMV_1 to XMV_11 (manipulated variables)
         self.simulation_mode = 'real'  # 'demo', 'balanced', 'real'
         self.simulation_interval = 180  # seconds (3 minutes default)
-        
+
         # Data storage
         self.recent_data = deque(maxlen=100)
-        
-        print("✅ TEP Data Bridge initialized")
+
+        print("✅ TEP Data Bridge initialized with XMV/IDV support")
         print("✅ Timing: TEP(3min) → Anomaly Detection(6min) → LLM(12min)")
+        print(f"🎛️ Default XMV values: {self.xmv_values}")
+        print(f"🔧 Default IDV values: {self.idv_values}")
 
     def setup_tep2py(self):
         """Load the TEP simulation module."""
@@ -78,40 +87,63 @@ class TEPDataBridge:
             print("📁 Python path:", sys.path[:3])
             raise
 
+    def set_xmv(self, xmv_number, value):
+        """Set XMV value (1-based indexing)."""
+        if 1 <= xmv_number <= 11:
+            self.xmv_values[xmv_number - 1] = float(value)
+            print(f"🎛️ Set XMV_{xmv_number} = {value:.2f}%")
+            return True
+        return False
+
     def set_idv(self, idv_number, value):
         """Set IDV value (1-based indexing)."""
         if 1 <= idv_number <= 20:
             self.idv_values[idv_number - 1] = float(value)
-            print(f"🔧 Set IDV_{idv_number} = {value:.2f}")
+            print(f"🔧 Set IDV_{idv_number} = {value:.3f}")
             return True
         return False
 
     def get_simulation_data(self):
-        """Run one step of TEP simulation and return data."""
+        """Run one step of TEP simulation with REAL Fortran physics."""
         try:
-            # Run simulation with current IDV values
-            result = self.tep.tep(self.idv_values)
-            
-            # Extract the data (result is typically a tuple or array)
-            if isinstance(result, (list, tuple, np.ndarray)):
-                data_point = np.array(result).flatten()
+            # Create IDV matrix for simulation (1 time step)
+            idv_matrix = self.idv_values.reshape(1, -1)
+
+            print(f"🎛️ Running TEP simulation with XMV: {self.xmv_values}")
+            print(f"🔧 IDV disturbances: {self.idv_values}")
+
+            # Create tep2py instance with current XMV values
+            tep_sim = self.tep.tep2py(idv_matrix, speed_factor=1.0, user_xmv=self.xmv_values)
+
+            # Run REAL Fortran simulation
+            tep_sim.simulate()
+
+            # Extract the latest data point
+            if hasattr(tep_sim, 'process_data') and not tep_sim.process_data.empty:
+                # Get the last row of data (most recent simulation step)
+                latest_data = tep_sim.process_data.iloc[-1].values
+
+                # Create data record
+                record = {
+                    'step': self.current_step,
+                    'timestamp': time.time(),
+                    'idv_values': self.idv_values.tolist(),
+                    'xmv_values': self.xmv_values.tolist(),
+                    'measurements': latest_data.tolist(),
+                    'mode': self.simulation_mode
+                }
+
+                self.recent_data.append(record)
+                print(f"✅ TEP simulation step {self.current_step} complete - REAL Fortran physics!")
+                return record
             else:
-                data_point = np.array([result]).flatten()
-            
-            # Create data record
-            record = {
-                'step': self.current_step,
-                'timestamp': time.time(),
-                'idv_values': self.idv_values.tolist(),
-                'measurements': data_point.tolist(),
-                'mode': self.simulation_mode
-            }
-            
-            self.recent_data.append(record)
-            return record
-            
+                print("❌ No simulation data generated")
+                return None
+
         except Exception as e:
             print(f"❌ Simulation error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def save_data_point(self, data_point):
@@ -155,7 +187,7 @@ class TEPDataBridge:
             
             print("➡️ Posting /ingest...")
             response = requests.post(
-                'http://localhost:8000/ingest',
+                'http://localhost:8001/ingest',  # Integration backend port
                 json=payload,
                 timeout=30
             )

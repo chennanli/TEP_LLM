@@ -99,7 +99,10 @@ class TEPDataBridge:
     def setup_tep2py(self):
         """Setup real tep2py simulator."""
         try:
-            tep_path = os.path.join(os.getcwd(), 'external_repos', 'tep2py-master')
+            # Get integration root directory and build path to external_repos
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            integration_root = os.path.abspath(os.path.join(script_dir, '../../../../..'))
+            tep_path = os.path.join(integration_root, 'external_repos', 'tep2py-master')
             if tep_path not in sys.path:
                 sys.path.insert(0, tep_path)
 
@@ -125,7 +128,7 @@ class TEPDataBridge:
             row[name] = float(data_point.get(f'XMEAS_{i}', 0.0))
         return row
 
-    def send_to_ingest(self, data_point, url="http://localhost:8000/ingest"):
+    def send_to_ingest(self, data_point, url="http://localhost:8001/ingest"):
         """Post a single mapped point to FaultExplainer /ingest and record heartbeat.
         Logs backend response to detect ignored vs aggregating vs accepted events.
         """
@@ -438,15 +441,18 @@ class TEPDataBridge:
     def start_faultexplainer_backend(self):
         """Start FaultExplainer backend."""
         try:
-            backend_path = os.path.join(os.getcwd(), 'external_repos', 'FaultExplainer-main', 'backend')
+            # Get integration root directory and build path to external_repos
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            integration_root = os.path.abspath(os.path.join(script_dir, '../../../../..'))
+            backend_path = os.path.join(integration_root, 'external_repos', 'FaultExplainer-main', 'backend')
 
             # Kill existing backend if running
             if 'faultexplainer_backend' in self.processes:
                 self.processes['faultexplainer_backend'].terminate()
                 del self.processes['faultexplainer_backend']
 
-            # Kill any process using port 8000
-            self.kill_port_process(8000)
+            # Kill any process using port 8001 (integration backend)
+            self.kill_port_process(8001)
             time.sleep(1)  # Wait for port to be freed
 
             # Activate virtual environment and start backend (prefer .venv, support Windows)
@@ -467,7 +473,7 @@ class TEPDataBridge:
             if process.poll() is None:
                 self.processes['faultexplainer_backend'] = process
                 print("✅ Backend process started successfully")
-                return True, "FaultExplainer backend started on port 8000"
+                return True, "FaultExplainer backend started on port 8001 (integration)"
             else:
                 stdout, stderr = process.communicate()
                 error_msg = stdout.decode() if stdout else "Unknown error"
@@ -481,17 +487,20 @@ class TEPDataBridge:
     def start_faultexplainer_backend_dev(self):
         """Start backend in dev (uvicorn reload) mode."""
         try:
-            backend_path = os.path.join(os.getcwd(), 'external_repos', 'FaultExplainer-main', 'backend')
+            # Get integration root directory and build path to external_repos
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            integration_root = os.path.abspath(os.path.join(script_dir, '../../../../..'))
+            backend_path = os.path.join(integration_root, 'external_repos', 'FaultExplainer-main', 'backend')
             # Kill existing backend
             if 'faultexplainer_backend' in self.processes:
                 self.processes['faultexplainer_backend'].terminate()
                 del self.processes['faultexplainer_backend']
-            self.kill_port_process(8000)
+            self.kill_port_process(8001)
             time.sleep(1)
             venv_python = resolve_venv_python()
             print(f"🚀 Starting backend (dev reload): {venv_python} -m uvicorn app:app --reload")
             process = subprocess.Popen(
-                [venv_python, '-m', 'uvicorn', 'app:app', '--host', '0.0.0.0', '--port', '8000', '--reload'],
+                [venv_python, '-m', 'uvicorn', 'app:app', '--host', '0.0.0.0', '--port', '8001', '--reload'],
                 cwd=backend_path,
                 stdout=None,
                 stderr=None,
@@ -500,7 +509,7 @@ class TEPDataBridge:
             time.sleep(2)
             if process.poll() is None:
                 self.processes['faultexplainer_backend'] = process
-                return True, "FaultExplainer backend (dev) started on port 8000"
+                return True, "FaultExplainer backend (dev) started on port 8001 (integration)"
             return False, "Backend (dev) failed to start"
         except Exception as e:
             return False, f"Failed to start backend dev: {e}"
@@ -520,7 +529,7 @@ class TEPDataBridge:
             if process.poll() is None:
                 self.processes['faultexplainer_backend'] = process
                 print("✅ Backend process started successfully")
-                return True, "FaultExplainer backend started on port 8000"
+                return True, "FaultExplainer backend started on port 8001 (integration)"
             else:
                 stdout, stderr = process.communicate()
                 error_msg = stdout.decode() if stdout else "Unknown error"
@@ -534,21 +543,24 @@ class TEPDataBridge:
     def start_faultexplainer_frontend(self):
         """Start FaultExplainer frontend."""
         try:
-            frontend_path = os.path.join(os.getcwd(), 'external_repos', 'FaultExplainer-main', 'frontend')
+            # Get integration root directory and build path to external_repos
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            integration_root = os.path.abspath(os.path.join(script_dir, '../../../../..'))
+            frontend_path = os.path.join(integration_root, 'external_repos', 'FaultExplainer-main', 'frontend')
 
             # Kill existing frontend if running
             if 'faultexplainer_frontend' in self.processes:
                 self.processes['faultexplainer_frontend'].terminate()
                 del self.processes['faultexplainer_frontend']
 
-            # Kill any process using port 5173 (Vite default)
-            self.kill_port_process(5173)
+            # Kill any process using port 5174 (Integration frontend)
+            self.kill_port_process(5174)
             time.sleep(1)  # Wait for port to be freed
 
             # Check if node_modules exists
             node_modules_path = os.path.join(frontend_path, 'node_modules')
             if not os.path.exists(node_modules_path):
-                return False, "Frontend dependencies not installed. Run: cd external_repos/FaultExplainer-main/frontend && npm install"
+                return False, "Frontend dependencies not installed. Run: cd integration/external_repos/FaultExplainer-main/frontend && npm install"
 
             print(f"🚀 Starting frontend: npm start in {frontend_path}")
 
@@ -567,10 +579,10 @@ class TEPDataBridge:
                 print("✅ Frontend process started successfully")
                 try:
                     import webbrowser
-                    webbrowser.open('http://localhost:5173')
+                    webbrowser.open('http://localhost:5174')
                 except Exception:
                     pass
-                return True, "FaultExplainer frontend started on port 5173"
+                return True, "FaultExplainer frontend started on port 5174 (integration)"
             else:
                 stdout, stderr = process.communicate()
                 error_msg = stdout.decode() if stdout else "Unknown error"
@@ -609,7 +621,7 @@ class TEPDataBridge:
         backend_buf = None
         try:
             import requests
-            r = requests.get('http://localhost:8000/status', timeout=1.5)
+            r = requests.get('http://localhost:8001/status', timeout=1.5)
             if r.ok:
                 js = r.json()
                 backend_agg = js.get('aggregated_count')
@@ -752,7 +764,10 @@ class UnifiedControlPanel:
             # Only allow known names
             if name not in ('sse','ingest'):
                 return jsonify({'error':'invalid log'}), 400
-            bdir = os.path.join(os.getcwd(), 'external_repos','FaultExplainer-main','backend','diagnostics')
+            # Get integration root directory and build path to external_repos
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            integration_root = os.path.abspath(os.path.join(script_dir, '../../../../..'))
+            bdir = os.path.join(integration_root, 'external_repos','FaultExplainer-main','backend','diagnostics')
             path = os.path.join(bdir, f"{name}.log")
             try:
                 if not os.path.exists(path):
@@ -765,7 +780,10 @@ class UnifiedControlPanel:
 
         @self.app.route('/api/analysis/history/download/<fmt>')
         def download_history(fmt):
-            diag_dir = os.path.join(os.getcwd(), 'external_repos','FaultExplainer-main','backend','diagnostics')
+            # Get integration root directory and build path to external_repos
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            integration_root = os.path.abspath(os.path.join(script_dir, '../../../../..'))
+            diag_dir = os.path.join(integration_root, 'external_repos','FaultExplainer-main','backend','diagnostics')
             if fmt == 'jsonl':
                 path = os.path.join(diag_dir, 'analysis_history.jsonl')
                 if not os.path.exists(path):
@@ -784,7 +802,10 @@ class UnifiedControlPanel:
         @self.app.route('/api/analysis/history/download/bydate/<datestr>')
         def download_history_by_date(datestr):
             # datestr format: YYYY-MM-DD
-            diag_dir = os.path.join(os.getcwd(), 'external_repos','FaultExplainer-main','backend','diagnostics','analysis_history')
+            # Get integration root directory and build path to external_repos
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            integration_root = os.path.abspath(os.path.join(script_dir, '../../../../..'))
+            diag_dir = os.path.join(integration_root, 'external_repos','FaultExplainer-main','backend','diagnostics','analysis_history')
             path = os.path.join(diag_dir, f"{datestr}.md")
             if not os.path.exists(path):
                 return jsonify({'error':'missing'}), 404
@@ -838,7 +859,7 @@ class UnifiedControlPanel:
                     self.bridge.current_preset = payload['preset']
                     # Remove preset before forwarding
                     payload = {k:v for k,v in payload.items() if k!='preset'}
-                r = requests.post('http://localhost:8000/config/runtime', json=payload, timeout=5)
+                r = requests.post('http://localhost:8001/config/runtime', json=payload, timeout=5)
                 return jsonify(r.json()), r.status_code
             except Exception as e:
                 return jsonify({'status':'error','error':str(e)}), 500
@@ -848,7 +869,7 @@ class UnifiedControlPanel:
                 try:
                     payload = request.get_json(silent=True) or {}
                     import requests
-                    r = requests.post('http://localhost:8000/config/baseline/reload', json=payload, timeout=5)
+                    r = requests.post('http://localhost:8001/config/baseline/reload', json=payload, timeout=5)
                     return jsonify(r.json()), r.status_code
                 except Exception as e:
                     return jsonify({'status':'error','error':str(e)}), 500
@@ -858,7 +879,7 @@ class UnifiedControlPanel:
         def proxy_backend_alpha():
             try:
                 payload = request.get_json() or {}
-                r = requests.post('http://localhost:8000/config/alpha', json=payload, timeout=5)
+                r = requests.post('http://localhost:8001/config/alpha', json=payload, timeout=5)
                 return jsonify(r.json()), r.status_code
             except Exception as e:
                 return jsonify({'status':'error','error':str(e)}), 500
@@ -869,10 +890,10 @@ class UnifiedControlPanel:
             try:
                 limit = request.args.get('limit', '5')
                 import requests
-                r = requests.get(f'http://localhost:8000/analysis/history?limit={limit}', timeout=10)
+                r = requests.get(f'http://localhost:8001/analysis/history?limit={limit}', timeout=10)
                 return jsonify(r.json()), r.status_code
             except Exception as e:
-                return jsonify({'status':'error','error':str(e), 'message': 'Backend not reachable on port 8000. Make sure FaultExplainer backend is running.'}), 500
+                return jsonify({'status':'error','error':str(e), 'message': 'Backend not reachable on port 8001. Make sure FaultExplainer backend is running.'}), 500
 
         # Download analysis history
         @self.app.route('/api/analysis/history/download/<format>')
@@ -880,7 +901,7 @@ class UnifiedControlPanel:
             try:
                 limit = request.args.get('limit', '20')
                 import requests
-                r = requests.get(f'http://localhost:8000/analysis/history?limit={limit}', timeout=10)
+                r = requests.get(f'http://localhost:8001/analysis/history?limit={limit}', timeout=10)
                 data = r.json()
 
                 if format == 'jsonl':
@@ -1192,7 +1213,7 @@ CONTROL_PANEL_HTML = '''
                             <button class="btn btn-info" onclick="testBackendConnection()">🧪 Test Backend</button>
                         </div>
 
-                    <p style="font-size: 12px; color: #666;">Port: 8000</p>
+                    <p style="font-size: 12px; color: #666;">Port: 8001 (Integration)</p>
                         <div style="margin-top:6px">
                             <button class="btn btn-warning" onclick="restartTEP()">⟳ Restart TEP</button>
                         </div>
@@ -1250,7 +1271,7 @@ CONTROL_PANEL_HTML = '''
                 </div>
 
                     <button class="btn btn-primary" onclick="startFrontend()">▶️ Start Frontend</button>
-                    <p style="font-size: 12px; color: #666;">Port: 5173</p>
+                    <p style="font-size: 12px; color: #666;">Port: 5174 (Integration)</p>
                 </div>
 
                 <div class="control-card">

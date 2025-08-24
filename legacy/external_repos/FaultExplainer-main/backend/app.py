@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 import json
 import base64
 import matplotlib
+
+# Load environment variables first
+load_dotenv()
 import pandas as pd
 import asyncio
 
@@ -190,7 +193,6 @@ def build_live_feature_comparison(feature_series: Dict[str, List[float]]) -> str
     return "\n".join(lines)
 
 
-load_dotenv()
 # --- Lightweight rotating logs (size-limited) ---
 import logging
 from logging.handlers import RotatingFileHandler
@@ -240,7 +242,7 @@ ingest_logger.setLevel(logging.INFO)
 # Initialize FastAPI app
 app = FastAPI()
 
-origins = ["http://localhost", "http://localhost:5173", "*"]
+origins = ["http://localhost", "http://localhost:5173", "http://127.0.0.1:5173", "*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -922,7 +924,7 @@ async def check_lmstudio_health():
         import requests
 
         # Quick connection test
-        response = requests.get("http://localhost:1234/v1/models", timeout=5)
+        response = requests.get("http://127.0.0.1:1234/v1/models", timeout=5)
         if response.status_code == 200:
             models = response.json().get("data", [])
             return {
@@ -946,7 +948,7 @@ async def restart_lmstudio_suggestion():
             "2. Go to Server tab",
             "3. Stop current server if running",
             "4. Select model and click 'Start Server'",
-            "5. Ensure server runs on localhost:1234"
+            "5. Ensure server runs on 127.0.0.1:1234"
         ],
         "health_check_url": "/health/lmstudio"
     }

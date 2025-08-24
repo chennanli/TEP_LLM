@@ -8,13 +8,13 @@
   "anomaly_threshold": 0.05,
   "models": {
     "anthropic": {
-      "api_key": "YOUR_ANTHROPIC_API_KEY_HERE",
+      "api_key": "${ANTHROPIC_API_KEY}",
       "model_name": "claude-3-5-sonnet-20241022",
       "enabled": true
     },
     "gemini": {
-      "api_key": "YOUR_GEMINI_API_KEY_HERE",
-      "backup_api_key": "YOUR_GEMINI_BACKUP_API_KEY_HERE",
+      "api_key": "${GOOGLE_API_KEY}",
+      "backup_api_key": "${GOOGLE_API_KEY_BACKUP}",
       "model_name": "gemini-1.5-flash",
       "enabled": true,
       "auto_failover": true
@@ -28,7 +28,7 @@
   },
   "lmstudio": {
     "enabled": true,
-    "base_url": "http://localhost:1234/v1",
+    "base_url": "http://127.0.0.1:1234/v1",
     "model_name": "mistral-small",
     "api_key": "not-needed"
   },

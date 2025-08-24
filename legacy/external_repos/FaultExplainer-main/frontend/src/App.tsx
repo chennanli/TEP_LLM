@@ -385,7 +385,8 @@ function Simulator({
     });
 
     useEffect(() => {
-      const es = new EventSource("http://localhost:8000/stream");
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+      const es = new EventSource(`${apiBaseUrl}/stream`);
       es.onopen = () => { console.log("[Live] SSE open"); onConnectRef.current && onConnectRef.current(); };
       es.onerror = () => { console.warn("[Live] SSE error/closed"); onDisconnectRef.current && onDisconnectRef.current(); };
       es.onmessage = (evt) => {
@@ -688,7 +689,8 @@ export default function App() {
     };
 
     try {
-      const response = await fetch("http://localhost:8000/explain", {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+      const response = await fetch(`${apiBaseUrl}/explain`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

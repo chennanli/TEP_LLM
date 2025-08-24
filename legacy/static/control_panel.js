@@ -548,10 +548,60 @@ function stopTEP() {
 }
 
 function stopAll() {
-    console.log('stopAll() called from external JS');
+    console.log('🛑 EMERGENCY STOP: stopAll() called from external JS');
+
+    // Show immediate feedback
+    showMessage('🛑 EMERGENCY STOP: Shutting down all services...', 'warning');
+
+    // Disable the stop button to prevent multiple clicks
+    var stopBtn = document.querySelector("button[onclick*='stopAll']");
+    if (stopBtn) {
+        stopBtn.disabled = true;
+        stopBtn.textContent = '🛑 Stopping...';
+    }
+
+    // Call the comprehensive stop endpoint
     fetch('/api/stop/all', {method: 'POST'})
-        .then(function(response) { return response.json(); })
-        .then(function(data) { showMessage(data.message, 'success'); });
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Stop request failed: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            showMessage('✅ ' + data.message, 'success');
+
+            // Additional cleanup - call external stop script
+            return fetch('/api/emergency/shutdown', {method: 'POST'});
+        })
+        .then(function(response) {
+            if (response && response.ok) {
+                return response.json();
+            }
+            return {message: 'External shutdown script not available'};
+        })
+        .then(function(data) {
+            console.log('External shutdown result:', data);
+            showMessage('🎉 Complete shutdown successful! All services stopped.', 'success');
+
+            // Re-enable button after 5 seconds
+            setTimeout(function() {
+                if (stopBtn) {
+                    stopBtn.disabled = false;
+                    stopBtn.textContent = '🛑 Stop Everything';
+                }
+            }, 5000);
+        })
+        .catch(function(error) {
+            console.error('Stop error:', error);
+            showMessage('⚠️ Stop request completed with warnings: ' + error.message, 'warning');
+
+            // Re-enable button
+            if (stopBtn) {
+                stopBtn.disabled = false;
+                stopBtn.textContent = '🛑 Stop Everything';
+            }
+        });
 }
 
 function setLLMInterval(sec) {

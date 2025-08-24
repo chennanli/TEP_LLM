@@ -15,8 +15,17 @@ import logging
 from datetime import datetime, timedelta
 from collections import defaultdict
 import threading
+import os
+import re
 
 logger = logging.getLogger(__name__)
+
+def resolve_env_vars(value: str) -> str:
+    """Resolve environment variables in config values like ${VAR_NAME}"""
+    if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+        env_var = value[2:-1]  # Remove ${ and }
+        return os.getenv(env_var, value)  # Return original if env var not found
+    return value
 
 # Optional RAG system import
 try:
@@ -96,10 +105,10 @@ class MultiLLMClient:
     
     def _init_gemini(self, config: Dict[str, Any]) -> Any:
         """Initialize Google Gemini client with failover support"""
-        # Store both API keys for failover
+        # Store both API keys for failover - resolve environment variables
         self.gemini_config = config
-        self.gemini_primary_key = config["api_key"]
-        self.gemini_backup_key = config.get("backup_api_key")
+        self.gemini_primary_key = resolve_env_vars(config["api_key"])
+        self.gemini_backup_key = resolve_env_vars(config.get("backup_api_key", ""))
         self.gemini_current_key = self.gemini_primary_key
 
         # Configure with primary key initially
@@ -108,7 +117,8 @@ class MultiLLMClient:
     
     def _init_claude(self, config: Dict[str, Any]) -> Anthropic:
         """Initialize Claude client"""
-        return Anthropic(api_key=config["api_key"])
+        api_key = resolve_env_vars(config["api_key"])
+        return Anthropic(api_key=api_key)
 
     def enhance_prompt_with_rag(self, user_prompt: str, fault_features: List[str] = None,
                                fault_data: Dict[str, Any] = None) -> str:

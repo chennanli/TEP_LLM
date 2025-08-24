@@ -20,10 +20,35 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Import TEP Bridge for real-time simulation control
+try:
+    from simulation.tep_bridge import TEPDataBridge
+    tep_bridge = TEPDataBridge()
+    print("✅ TEP Bridge initialized for real-time XMV/IDV control")
+except Exception as e:
+    print(f"⚠️ TEP Bridge initialization failed: {e}")
+    tep_bridge = None
+
 # Load and validate configuration
 def load_config(file_path):
+    # Load environment variables
+    load_dotenv()
+
     with open(file_path, "r") as config_file:
-        config = json.load(config_file)
+        config_text = config_file.read()
+
+    # Replace environment variable placeholders
+    import re
+    def replace_env_var(match):
+        env_var = match.group(1)
+        value = os.getenv(env_var)
+        if value is None:
+            print(f"⚠️ Environment variable {env_var} not found, using placeholder")
+            return match.group(0)  # Return original placeholder
+        return value
+
+    config_text = re.sub(r'\$\{([^}]+)\}', replace_env_var, config_text)
+    config = json.loads(config_text)
 
     # Validate models configuration
     if "models" not in config:
@@ -697,6 +722,99 @@ async def stop_simulation():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Global XMV control variables (Tennessee Eastman Process Manipulated Variables)
+_current_xmv = [63.0, 53.0, 24.0, 61.0, 22.0, 40.0, 38.0, 46.0, 47.0, 41.0, 18.0]  # Default TEP values
+_current_idv = [0.0] * 20  # IDV_1 to IDV_20 (disturbance variables)
+
+@app.post("/api/xmv/set")
+async def set_xmv(payload: Dict[str, Any] = Body(...)):
+    """Set XMV (Manipulated Variable) value for TEP simulation"""
+    global _current_xmv
+    try:
+        xmv_num = int(payload.get("xmv_num", 1))
+        value = float(payload.get("value", 0.0))
+
+        # Validate XMV number (1-11)
+        if not (1 <= xmv_num <= 11):
+            raise ValueError(f"XMV number must be 1-11, got {xmv_num}")
+
+        # Validate value range (0-100% typically)
+        value = max(0.0, min(100.0, value))
+
+        # Update local state
+        _current_xmv[xmv_num - 1] = value
+
+        # Update TEP bridge if available
+        if tep_bridge:
+            tep_bridge.set_xmv(xmv_num, value)
+
+        print(f"🎛️ Set XMV_{xmv_num} = {value:.2f}% (Real Fortran physics)")
+
+        return {
+            "success": True,
+            "xmv_num": xmv_num,
+            "value": value,
+            "current_xmv": _current_xmv.copy(),
+            "bridge_connected": tep_bridge is not None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/idv/set")
+async def set_idv(payload: Dict[str, Any] = Body(...)):
+    """Set IDV (Disturbance Variable) value for TEP simulation"""
+    global _current_idv
+    try:
+        idv_num = int(payload.get("idv_num", 1))
+        value = float(payload.get("value", 0.0))
+
+        # Validate IDV number (1-20)
+        if not (1 <= idv_num <= 20):
+            raise ValueError(f"IDV number must be 1-20, got {idv_num}")
+
+        # Validate value range (0-1 for most IDVs)
+        value = max(0.0, min(1.0, value))
+
+        # Update local state
+        _current_idv[idv_num - 1] = value
+
+        # Update TEP bridge if available
+        if tep_bridge:
+            tep_bridge.set_idv(idv_num, value)
+
+        print(f"🔧 Set IDV_{idv_num} = {value:.3f} (Real Fortran physics)")
+
+        return {
+            "success": True,
+            "idv_num": idv_num,
+            "value": value,
+            "current_idv": _current_idv.copy(),
+            "bridge_connected": tep_bridge is not None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/controls/status")
+async def get_controls_status():
+    """Get current XMV and IDV values"""
+    return {
+        "xmv_values": _current_xmv.copy(),
+        "idv_values": _current_idv.copy(),
+        "xmv_labels": [
+            "D Feed Flow", "E Feed Flow", "A Feed Flow", "A+C Feed Flow",
+            "Compressor Recycle", "Purge Valve", "Separator Liquid",
+            "Stripper Liquid", "Stripper Steam", "Reactor Cooling", "Condenser Cooling"
+        ],
+        "idv_labels": [
+            "A/C Feed Ratio", "B Composition", "D Feed Temp", "Reactor Cooling Inlet",
+            "Condenser Cooling Inlet", "A Feed Loss", "C Header Pressure",
+            "A,B,C Feed Composition", "D Feed Temp Random", "C Feed Temp Random",
+            "Reactor Cooling Random", "Condenser Cooling Random", "Reaction Kinetics",
+            "Reactor Cooling Valve", "Condenser Cooling Valve", "Unknown_16",
+            "Unknown_17", "Unknown_18", "Unknown_19", "Unknown_20"
+        ]
+    }
+
 @app.post("/api/stop/all")
 async def stop_all_tasks():
     """Stop all LLM analysis tasks and simulation"""
@@ -885,8 +1003,8 @@ if __name__ == "__main__":
     try:
         import uvicorn
         print("📡 Uvicorn imported successfully")
-        print("🌐 Starting server on http://0.0.0.0:8000")
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+        print("🌐 Starting server on http://0.0.0.0:8001 (Integration System)")
+        uvicorn.run(app, host="0.0.0.0", port=8001)
     except Exception as e:
         print(f"❌ Error starting server: {e}")
         import traceback

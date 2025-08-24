@@ -21602,3 +21602,363 @@ Top 6 Contributing Features (Fault vs Normal):
 4. Stripper Pressure: Fault=3111.149 | Normal=3101.749 | Δ=9.399 (0.30%) | z=1.77
 5. D Feed: Fault=3523.781 | Normal=3662.773 | Δ=-138.992 (-3.79%) | z=-4.26
 6. Stripper Steam Flow: Fault=219.878 | Normal=236.147 | Δ=-16.268 (-6.89%) | z=-2.10
+
+## 2025-08-21 12:29:04 (id: 1755804544381)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3598.087 | Normal=3662.773 | Δ=-64.686 (-1.77%) | z=-1.98
+2. E Feed: Fault=4417.527 | Normal=4509.577 | Δ=-92.051 (-2.04%) | z=-2.38
+3. Reactor Pressure: Fault=2746.810 | Normal=2704.357 | Δ=42.453 (1.57%) | z=7.12
+4. Product Sep Pressure: Fault=2671.179 | Normal=2633.026 | Δ=38.153 (1.45%) | z=6.13
+5. Stripper Pressure: Fault=3103.533 | Normal=3101.749 | Δ=1.784 (0.06%) | z=0.34
+6. Compressor Work: Fault=342.802 | Normal=341.241 | Δ=1.561 (0.46%) | z=1.35
+
+## 2025-08-21 12:29:36 (id: 1755804576932)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3137.013 | Normal=3101.749 | Δ=35.263 (1.14%) | z=6.63
+2. Product Sep Pressure: Fault=2627.537 | Normal=2633.026 | Δ=-5.489 (-0.21%) | z=-0.88
+3. Compressor Work: Fault=330.566 | Normal=341.241 | Δ=-10.675 (-3.13%) | z=-9.26
+4. E Feed: Fault=4357.685 | Normal=4509.577 | Δ=-151.892 (-3.37%) | z=-3.93
+5. Reactor Pressure: Fault=2700.119 | Normal=2704.357 | Δ=-4.238 (-0.16%) | z=-0.71
+6. D Feed: Fault=3529.544 | Normal=3662.773 | Δ=-133.230 (-3.64%) | z=-4.08
+
+## 2025-08-21 12:30:09 (id: 1755804609468)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4326.150 | Normal=4509.577 | Δ=-183.427 (-4.07%) | z=-4.74
+2. D Feed: Fault=3519.555 | Normal=3662.773 | Δ=-143.218 (-3.91%) | z=-4.39
+3. Stripper Pressure: Fault=3121.525 | Normal=3101.749 | Δ=19.775 (0.64%) | z=3.72
+4. Product Sep Pressure: Fault=2661.232 | Normal=2633.026 | Δ=28.206 (1.07%) | z=4.53
+5. Reactor Pressure: Fault=2691.613 | Normal=2704.357 | Δ=-12.744 (-0.47%) | z=-2.14
+6. Stripper Temp: Fault=66.026 | Normal=65.955 | Δ=0.070 (0.11%) | z=0.21
+
+## 2025-08-21 12:36:51 (id: 1755805011458)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3704.651 | Normal=3662.773 | Δ=41.878 (1.14%) | z=1.28
+2. E Feed: Fault=4538.249 | Normal=4509.577 | Δ=28.671 (0.64%) | z=0.74
+3. Stripper Pressure: Fault=3085.783 | Normal=3101.749 | Δ=-15.966 (-0.51%) | z=-3.00
+4. Reactor Pressure: Fault=2703.915 | Normal=2704.357 | Δ=-0.442 (-0.02%) | z=-0.07
+5. Stripper Steam Flow: Fault=230.741 | Normal=236.147 | Δ=-5.405 (-2.29%) | z=-0.70
+6. Stripper Level: Fault=48.281 | Normal=50.041 | Δ=-1.760 (-3.52%) | z=-1.70
+
+## 2025-08-21 12:37:45 (id: 1755805065044)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4535.340 | Normal=4509.577 | Δ=25.763 (0.57%) | z=0.67
+2. D Feed: Fault=3663.379 | Normal=3662.773 | Δ=0.606 (0.02%) | z=0.02
+3. Product Sep Pressure: Fault=2697.512 | Normal=2633.026 | Δ=64.487 (2.45%) | z=10.37
+4. Reactor Pressure: Fault=2743.454 | Normal=2704.357 | Δ=39.097 (1.45%) | z=6.55
+5. Stripper Steam Flow: Fault=237.920 | Normal=236.147 | Δ=1.773 (0.75%) | z=0.23
+6. Compressor Work: Fault=347.959 | Normal=341.241 | Δ=6.718 (1.97%) | z=5.83
+
+## 2025-08-22 08:48:41 (id: 1755877721035)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3681.267 | Normal=3662.773 | Δ=18.494 (0.50%) | z=0.57
+2. E Feed: Fault=4531.421 | Normal=4509.577 | Δ=21.844 (0.48%) | z=0.56
+3. Stripper Pressure: Fault=3120.756 | Normal=3101.749 | Δ=19.007 (0.61%) | z=3.57
+4. Reactor Pressure: Fault=2701.038 | Normal=2704.357 | Δ=-3.319 (-0.12%) | z=-0.56
+5. Stripper Steam Flow: Fault=241.425 | Normal=236.147 | Δ=5.278 (2.24%) | z=0.68
+6. Stripper Level: Fault=49.121 | Normal=50.041 | Δ=-0.920 (-1.84%) | z=-0.89
+
+## 2025-08-22 08:49:11 (id: 1755877751069)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4488.188 | Normal=4509.577 | Δ=-21.389 (-0.47%) | z=-0.55
+2. Stripper Pressure: Fault=3128.084 | Normal=3101.749 | Δ=26.335 (0.85%) | z=4.95
+3. Reactor Pressure: Fault=2714.998 | Normal=2704.357 | Δ=10.641 (0.39%) | z=1.78
+4. D Feed: Fault=3671.666 | Normal=3662.773 | Δ=8.893 (0.24%) | z=0.27
+5. Reactor Level: Fault=77.906 | Normal=75.017 | Δ=2.889 (3.85%) | z=5.48
+6. Reactor Coolant Temp: Fault=95.247 | Normal=94.610 | Δ=0.637 (0.67%) | z=5.11
+
+## 2025-08-22 08:49:41 (id: 1755877781266)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3629.828 | Normal=3662.773 | Δ=-32.945 (-0.90%) | z=-1.01
+2. Stripper Pressure: Fault=3189.603 | Normal=3101.749 | Δ=87.854 (2.83%) | z=16.51
+3. Reactor Pressure: Fault=2758.300 | Normal=2704.357 | Δ=53.943 (1.99%) | z=9.04
+4. E Feed: Fault=4491.928 | Normal=4509.577 | Δ=-17.649 (-0.39%) | z=-0.46
+5. Product Sep Pressure: Fault=2697.391 | Normal=2633.026 | Δ=64.365 (2.44%) | z=10.35
+6. Stripper Temp: Fault=62.730 | Normal=65.955 | Δ=-3.225 (-4.89%) | z=-9.63
+
+## 2025-08-22 09:30:21 (id: 1755880221272)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3150.175 | Normal=3101.749 | Δ=48.426 (1.56%) | z=9.10
+2. Product Sep Pressure: Fault=2684.344 | Normal=2633.026 | Δ=51.318 (1.95%) | z=8.25
+3. D Feed: Fault=3684.058 | Normal=3662.773 | Δ=21.285 (0.58%) | z=0.65
+4. Reactor Level: Fault=78.543 | Normal=75.017 | Δ=3.526 (4.70%) | z=6.69
+5. Stripper Steam Flow: Fault=234.990 | Normal=236.147 | Δ=-1.157 (-0.49%) | z=-0.15
+6. E Feed: Fault=4515.761 | Normal=4509.577 | Δ=6.184 (0.14%) | z=0.16
+
+## 2025-08-22 09:30:52 (id: 1755880252665)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3732.233 | Normal=3662.773 | Δ=69.460 (1.90%) | z=2.13
+2. Stripper Pressure: Fault=3148.944 | Normal=3101.749 | Δ=47.195 (1.52%) | z=8.87
+3. Reactor Pressure: Fault=2725.655 | Normal=2704.357 | Δ=21.298 (0.79%) | z=3.57
+4. Product Sep Pressure: Fault=2653.818 | Normal=2633.026 | Δ=20.792 (0.79%) | z=3.34
+5. E Feed: Fault=4521.307 | Normal=4509.577 | Δ=11.730 (0.26%) | z=0.30
+6. Reactor Coolant Temp: Fault=98.081 | Normal=94.610 | Δ=3.471 (3.67%) | z=27.85
+
+## 2025-08-22 09:31:25 (id: 1755880285203)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3175.198 | Normal=3101.749 | Δ=73.449 (2.37%) | z=13.80
+2. Reactor Pressure: Fault=2751.576 | Normal=2704.357 | Δ=47.219 (1.75%) | z=7.92
+3. E Feed: Fault=4494.190 | Normal=4509.577 | Δ=-15.387 (-0.34%) | z=-0.40
+4. Product Sep Pressure: Fault=2697.707 | Normal=2633.026 | Δ=64.681 (2.46%) | z=10.40
+5. D Feed: Fault=3670.449 | Normal=3662.773 | Δ=7.676 (0.21%) | z=0.24
+6. Stripper Steam Flow: Fault=241.464 | Normal=236.147 | Δ=5.317 (2.25%) | z=0.69
+
+## 2025-08-22 09:31:57 (id: 1755880317737)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3597.250 | Normal=3662.773 | Δ=-65.523 (-1.79%) | z=-2.01
+2. Stripper Pressure: Fault=3196.786 | Normal=3101.749 | Δ=95.037 (3.06%) | z=17.86
+3. Product Sep Pressure: Fault=2715.339 | Normal=2633.026 | Δ=82.313 (3.13%) | z=13.23
+4. Reactor Pressure: Fault=2742.335 | Normal=2704.357 | Δ=37.978 (1.40%) | z=6.37
+5. E Feed: Fault=4503.309 | Normal=4509.577 | Δ=-6.268 (-0.14%) | z=-0.16
+6. Compressor Work: Fault=335.170 | Normal=341.241 | Δ=-6.071 (-1.78%) | z=-5.27
+
+## 2025-08-22 09:32:30 (id: 1755880350268)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3149.204 | Normal=3101.749 | Δ=47.455 (1.53%) | z=8.92
+2. D Feed: Fault=3650.389 | Normal=3662.773 | Δ=-12.384 (-0.34%) | z=-0.38
+3. Compressor Work: Fault=334.405 | Normal=341.241 | Δ=-6.836 (-2.00%) | z=-5.93
+4. E Feed: Fault=4492.958 | Normal=4509.577 | Δ=-16.619 (-0.37%) | z=-0.43
+5. Stripper Steam Flow: Fault=230.861 | Normal=236.147 | Δ=-5.286 (-2.24%) | z=-0.68
+6. Product Sep Pressure: Fault=2698.576 | Normal=2633.026 | Δ=65.550 (2.49%) | z=10.54
+
+## 2025-08-22 09:33:02 (id: 1755880382816)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4512.848 | Normal=4509.577 | Δ=3.271 (0.07%) | z=0.08
+2. Stripper Pressure: Fault=3186.914 | Normal=3101.749 | Δ=85.165 (2.75%) | z=16.00
+3. Product Sep Pressure: Fault=2711.123 | Normal=2633.026 | Δ=78.097 (2.97%) | z=12.55
+4. D Feed: Fault=3617.573 | Normal=3662.773 | Δ=-45.200 (-1.23%) | z=-1.38
+5. Product Sep Level: Fault=50.259 | Normal=50.062 | Δ=0.197 (0.39%) | z=0.19
+6. Stripper Steam Flow: Fault=230.654 | Normal=236.147 | Δ=-5.493 (-2.33%) | z=-0.71
+
+## 2025-08-22 09:33:35 (id: 1755880415367)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4537.252 | Normal=4509.577 | Δ=27.675 (0.61%) | z=0.72
+2. Stripper Pressure: Fault=3180.023 | Normal=3101.749 | Δ=78.274 (2.52%) | z=14.71
+3. Reactor Pressure: Fault=2755.176 | Normal=2704.357 | Δ=50.819 (1.88%) | z=8.52
+4. D Feed: Fault=3650.204 | Normal=3662.773 | Δ=-12.569 (-0.34%) | z=-0.38
+5. Product Sep Pressure: Fault=2704.166 | Normal=2633.026 | Δ=71.140 (2.70%) | z=11.43
+6. Compressor Work: Fault=341.754 | Normal=341.241 | Δ=0.513 (0.15%) | z=0.45
+
+## 2025-08-22 09:34:07 (id: 1755880447910)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4559.644 | Normal=4509.577 | Δ=50.067 (1.11%) | z=1.29
+2. D Feed: Fault=3697.356 | Normal=3662.773 | Δ=34.583 (0.94%) | z=1.06
+3. Stripper Pressure: Fault=3222.488 | Normal=3101.749 | Δ=120.739 (3.89%) | z=22.69
+4. Reactor Pressure: Fault=2769.359 | Normal=2704.357 | Δ=65.002 (2.40%) | z=10.90
+5. Stripper Steam Flow: Fault=238.637 | Normal=236.147 | Δ=2.490 (1.05%) | z=0.32
+6. Stripper Level: Fault=52.650 | Normal=50.041 | Δ=2.609 (5.21%) | z=2.52
+
+## 2025-08-22 09:34:40 (id: 1755880480457)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4549.344 | Normal=4509.577 | Δ=39.767 (0.88%) | z=1.03
+2. Reactor Pressure: Fault=2776.008 | Normal=2704.357 | Δ=71.651 (2.65%) | z=12.01
+3. Product Sep Pressure: Fault=2731.842 | Normal=2633.026 | Δ=98.816 (3.75%) | z=15.88
+4. Stripper Pressure: Fault=3216.071 | Normal=3101.749 | Δ=114.322 (3.69%) | z=21.48
+5. D Feed: Fault=3670.312 | Normal=3662.773 | Δ=7.539 (0.21%) | z=0.23
+6. Compressor Work: Fault=345.888 | Normal=341.241 | Δ=4.647 (1.36%) | z=4.03
+
+## 2025-08-22 09:35:13 (id: 1755880513152)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3195.712 | Normal=3101.749 | Δ=93.963 (3.03%) | z=17.66
+2. Reactor Pressure: Fault=2752.143 | Normal=2704.357 | Δ=47.786 (1.77%) | z=8.01
+3. Product Sep Pressure: Fault=2718.922 | Normal=2633.026 | Δ=85.896 (3.26%) | z=13.81
+4. E Feed: Fault=4532.843 | Normal=4509.577 | Δ=23.266 (0.52%) | z=0.60
+5. Stripper Steam Flow: Fault=239.919 | Normal=236.147 | Δ=3.772 (1.60%) | z=0.49
+6. Stripper Level: Fault=49.670 | Normal=50.041 | Δ=-0.371 (-0.74%) | z=-0.36
+
+## 2025-08-22 09:35:45 (id: 1755880545593)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4464.170 | Normal=4509.577 | Δ=-45.407 (-1.01%) | z=-1.17
+2. Stripper Pressure: Fault=3159.375 | Normal=3101.749 | Δ=57.626 (1.86%) | z=10.83
+3. D Feed: Fault=3633.374 | Normal=3662.773 | Δ=-29.399 (-0.80%) | z=-0.90
+4. Reactor Pressure: Fault=2738.493 | Normal=2704.357 | Δ=34.136 (1.26%) | z=5.72
+5. Product Sep Pressure: Fault=2737.675 | Normal=2633.026 | Δ=104.649 (3.97%) | z=16.82
+6. Compressor Work: Fault=335.479 | Normal=341.241 | Δ=-5.762 (-1.69%) | z=-5.00
+
+## 2025-08-22 10:53:57 (id: 1755885237765)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3081.905 | Normal=3101.749 | Δ=-19.845 (-0.64%) | z=-3.73
+2. Reactor Pressure: Fault=2692.319 | Normal=2704.357 | Δ=-12.038 (-0.45%) | z=-2.02
+3. Product Sep Pressure: Fault=2621.163 | Normal=2633.026 | Δ=-11.863 (-0.45%) | z=-1.91
+4. D Feed: Fault=3674.524 | Normal=3662.773 | Δ=11.751 (0.32%) | z=0.36
+5. E Feed: Fault=4492.680 | Normal=4509.577 | Δ=-16.897 (-0.37%) | z=-0.44
+6. Stripper Steam Flow: Fault=232.757 | Normal=236.147 | Δ=-3.390 (-1.44%) | z=-0.44
+
+## 2025-08-22 10:54:24 (id: 1755885264907)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4371.956 | Normal=4509.577 | Δ=-137.621 (-3.05%) | z=-3.56
+2. Product Sep Pressure: Fault=2557.780 | Normal=2633.026 | Δ=-75.246 (-2.86%) | z=-12.09
+3. Reactor Pressure: Fault=2635.376 | Normal=2704.357 | Δ=-68.981 (-2.55%) | z=-11.57
+4. D Feed: Fault=3644.155 | Normal=3662.773 | Δ=-18.618 (-0.51%) | z=-0.57
+5. Stripper Pressure: Fault=3056.066 | Normal=3101.749 | Δ=-45.683 (-1.47%) | z=-8.58
+6. Compressor Work: Fault=311.709 | Normal=341.241 | Δ=-29.532 (-8.65%) | z=-25.63
+
+## 2025-08-22 10:54:58 (id: 1755885298327)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4321.486 | Normal=4509.577 | Δ=-188.092 (-4.17%) | z=-4.86
+2. Stripper Pressure: Fault=3124.128 | Normal=3101.749 | Δ=22.378 (0.72%) | z=4.21
+3. Reactor Pressure: Fault=2690.277 | Normal=2704.357 | Δ=-14.080 (-0.52%) | z=-2.36
+4. Product Sep Pressure: Fault=2611.262 | Normal=2633.026 | Δ=-21.764 (-0.83%) | z=-3.50
+5. D Feed: Fault=3641.366 | Normal=3662.773 | Δ=-21.407 (-0.58%) | z=-0.66
+6. Compressor Work: Fault=309.808 | Normal=341.241 | Δ=-31.433 (-9.21%) | z=-27.28
+
+## 2025-08-22 11:56:19 (id: 1755888979926)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4535.547 | Normal=4509.577 | Δ=25.969 (0.58%) | z=0.67
+2. D Feed: Fault=3685.506 | Normal=3662.773 | Δ=22.732 (0.62%) | z=0.70
+3. Reactor Pressure: Fault=2700.849 | Normal=2704.357 | Δ=-3.508 (-0.13%) | z=-0.59
+4. Product Sep Pressure: Fault=2629.677 | Normal=2633.026 | Δ=-3.348 (-0.13%) | z=-0.54
+5. Stripper Pressure: Fault=3099.235 | Normal=3101.749 | Δ=-2.514 (-0.08%) | z=-0.47
+6. Stripper Steam Flow: Fault=234.222 | Normal=236.147 | Δ=-1.924 (-0.81%) | z=-0.25
+
+## 2025-08-22 11:57:49 (id: 1755889069633)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3722.456 | Normal=3662.773 | Δ=59.683 (1.63%) | z=1.83
+2. E Feed: Fault=4536.580 | Normal=4509.577 | Δ=27.003 (0.60%) | z=0.70
+3. Stripper Pressure: Fault=3128.877 | Normal=3101.749 | Δ=27.128 (0.87%) | z=5.10
+4. Product Sep Pressure: Fault=2656.262 | Normal=2633.026 | Δ=23.236 (0.88%) | z=3.73
+5. Reactor Pressure: Fault=2727.461 | Normal=2704.357 | Δ=23.104 (0.85%) | z=3.87
+6. Compressor Work: Fault=338.524 | Normal=341.241 | Δ=-2.717 (-0.80%) | z=-2.36
+
+## 2025-08-22 11:58:22 (id: 1755889102970)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3625.913 | Normal=3662.773 | Δ=-36.861 (-1.01%) | z=-1.13
+2. E Feed: Fault=4552.207 | Normal=4509.577 | Δ=42.630 (0.95%) | z=1.10
+3. Stripper Pressure: Fault=3135.154 | Normal=3101.749 | Δ=33.405 (1.08%) | z=6.28
+4. Product Sep Pressure: Fault=2659.453 | Normal=2633.026 | Δ=26.428 (1.00%) | z=4.25
+5. Reactor Pressure: Fault=2731.278 | Normal=2704.357 | Δ=26.921 (1.00%) | z=4.51
+6. Stripper Steam Flow: Fault=231.265 | Normal=236.147 | Δ=-4.881 (-2.07%) | z=-0.63
+
+## 2025-08-22 11:58:56 (id: 1755889136421)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4495.113 | Normal=4509.577 | Δ=-14.464 (-0.32%) | z=-0.37
+2. Stripper Pressure: Fault=3104.106 | Normal=3101.749 | Δ=2.356 (0.08%) | z=0.44
+3. Reactor Pressure: Fault=2711.576 | Normal=2704.357 | Δ=7.219 (0.27%) | z=1.21
+4. Product Sep Pressure: Fault=2640.347 | Normal=2633.026 | Δ=7.321 (0.28%) | z=1.18
+5. Compressor Work: Fault=344.693 | Normal=341.241 | Δ=3.452 (1.01%) | z=3.00
+6. D Feed: Fault=3681.992 | Normal=3662.773 | Δ=19.219 (0.52%) | z=0.59
+
+## 2025-08-22 12:07:24 (id: 1755889644683)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3709.286 | Normal=3662.773 | Δ=46.513 (1.27%) | z=1.42
+2. Stripper Pressure: Fault=3141.838 | Normal=3101.749 | Δ=40.088 (1.29%) | z=7.53
+3. Reactor Pressure: Fault=2730.655 | Normal=2704.357 | Δ=26.298 (0.97%) | z=4.41
+4. Product Sep Pressure: Fault=2657.288 | Normal=2633.026 | Δ=24.262 (0.92%) | z=3.90
+5. Compressor Work: Fault=330.843 | Normal=341.241 | Δ=-10.398 (-3.05%) | z=-9.02
+6. E Feed: Fault=4514.373 | Normal=4509.577 | Δ=4.796 (0.11%) | z=0.12
+
+## 2025-08-22 12:07:53 (id: 1755889673771)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3179.120 | Normal=3101.749 | Δ=77.370 (2.49%) | z=14.54
+2. Reactor Pressure: Fault=2764.772 | Normal=2704.357 | Δ=60.415 (2.23%) | z=10.13
+3. Product Sep Pressure: Fault=2690.333 | Normal=2633.026 | Δ=57.307 (2.18%) | z=9.21
+4. D Feed: Fault=3661.852 | Normal=3662.773 | Δ=-0.921 (-0.03%) | z=-0.03
+5. Compressor Work: Fault=328.742 | Normal=341.241 | Δ=-12.499 (-3.66%) | z=-10.85
+6. Stripper Steam Flow: Fault=237.431 | Normal=236.147 | Δ=1.284 (0.54%) | z=0.17
+
+## 2025-08-22 12:09:19 (id: 1755889759227)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4535.308 | Normal=4509.577 | Δ=25.731 (0.57%) | z=0.67
+2. D Feed: Fault=3670.980 | Normal=3662.773 | Δ=8.207 (0.22%) | z=0.25
+3. Stripper Steam Flow: Fault=253.574 | Normal=236.147 | Δ=17.428 (7.38%) | z=2.25
+4. Product Sep Pressure: Fault=2749.587 | Normal=2633.026 | Δ=116.561 (4.43%) | z=18.74
+5. Reactor Pressure: Fault=2822.729 | Normal=2704.357 | Δ=118.372 (4.38%) | z=19.85
+6. Stripper Pressure: Fault=3230.784 | Normal=3101.749 | Δ=129.035 (4.16%) | z=24.25
+
+## 2025-08-22 12:09:48 (id: 1755889788368)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3695.136 | Normal=3662.773 | Δ=32.363 (0.88%) | z=0.99
+2. E Feed: Fault=4531.049 | Normal=4509.577 | Δ=21.471 (0.48%) | z=0.56
+3. Stripper Pressure: Fault=3216.035 | Normal=3101.749 | Δ=114.286 (3.68%) | z=21.48
+4. Stripper Steam Flow: Fault=258.533 | Normal=236.147 | Δ=22.387 (9.48%) | z=2.89
+5. Product Sep Pressure: Fault=2735.485 | Normal=2633.026 | Δ=102.460 (3.89%) | z=16.47
+6. Reactor Pressure: Fault=2808.739 | Normal=2704.357 | Δ=104.382 (3.86%) | z=17.50
+
+## 2025-08-22 12:10:18 (id: 1755889818726)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3189.734 | Normal=3101.749 | Δ=87.984 (2.84%) | z=16.53
+2. Product Sep Pressure: Fault=2710.217 | Normal=2633.026 | Δ=77.191 (2.93%) | z=12.41
+3. Reactor Pressure: Fault=2783.296 | Normal=2704.357 | Δ=78.939 (2.92%) | z=13.23
+4. Stripper Steam Flow: Fault=277.408 | Normal=236.147 | Δ=41.262 (17.47%) | z=5.33
+5. D Feed: Fault=3692.572 | Normal=3662.773 | Δ=29.799 (0.81%) | z=0.91
+6. E Feed: Fault=4523.707 | Normal=4509.577 | Δ=14.130 (0.31%) | z=0.37
+
+## 2025-08-22 12:10:49 (id: 1755889849067)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. D Feed: Fault=3594.373 | Normal=3662.773 | Δ=-68.400 (-1.87%) | z=-2.09
+2. E Feed: Fault=4472.695 | Normal=4509.577 | Δ=-36.882 (-0.82%) | z=-0.95
+3. Reactor Pressure: Fault=2755.547 | Normal=2704.357 | Δ=51.190 (1.89%) | z=8.58
+4. Product Sep Pressure: Fault=2682.910 | Normal=2633.026 | Δ=49.884 (1.89%) | z=8.02
+5. Stripper Pressure: Fault=3164.717 | Normal=3101.749 | Δ=62.968 (2.03%) | z=11.83
+6. Stripper Steam Flow: Fault=301.546 | Normal=236.147 | Δ=65.400 (27.69%) | z=8.45
+
+## 2025-08-22 12:12:33 (id: 1755889953914)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4362.689 | Normal=4509.577 | Δ=-146.888 (-3.26%) | z=-3.80
+2. Stripper Steam Flow: Fault=384.863 | Normal=236.147 | Δ=148.716 (62.98%) | z=19.22
+3. Reactor Pressure: Fault=2662.800 | Normal=2704.357 | Δ=-41.557 (-1.54%) | z=-6.97
+4. Product Sep Pressure: Fault=2588.061 | Normal=2633.026 | Δ=-44.965 (-1.71%) | z=-7.23
+5. Stripper Pressure: Fault=3076.641 | Normal=3101.749 | Δ=-25.108 (-0.81%) | z=-4.72
+6. D Feed: Fault=3618.077 | Normal=3662.773 | Δ=-44.696 (-1.22%) | z=-1.37
+
+## 2025-08-24 13:51:38 (id: 1756068698536)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4442.161 | Normal=4509.577 | Δ=-67.416 (-1.49%) | z=-1.74
+2. D Feed: Fault=3674.712 | Normal=3662.773 | Δ=11.939 (0.33%) | z=0.37
+3. Stripper Pressure: Fault=3111.973 | Normal=3101.749 | Δ=10.224 (0.33%) | z=1.92
+4. Product Sep Pressure: Fault=2636.635 | Normal=2633.026 | Δ=3.610 (0.14%) | z=0.58
+5. Reactor Pressure: Fault=2708.001 | Normal=2704.357 | Δ=3.644 (0.13%) | z=0.61
+6. Stripper Steam Flow: Fault=241.768 | Normal=236.147 | Δ=5.621 (2.38%) | z=0.73
+
+## 2025-08-24 13:52:03 (id: 1756068723218)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. E Feed: Fault=4528.116 | Normal=4509.577 | Δ=18.539 (0.41%) | z=0.48
+2. Stripper Pressure: Fault=3172.410 | Normal=3101.749 | Δ=70.661 (2.28%) | z=13.28
+3. D Feed: Fault=3599.509 | Normal=3662.773 | Δ=-63.264 (-1.73%) | z=-1.94
+4. Reactor Pressure: Fault=2761.403 | Normal=2704.357 | Δ=57.046 (2.11%) | z=9.56
+5. Product Sep Pressure: Fault=2688.342 | Normal=2633.026 | Δ=55.316 (2.10%) | z=8.89
+6. Stripper Steam Flow: Fault=252.645 | Normal=236.147 | Δ=16.498 (6.99%) | z=2.13
+
+## 2025-08-24 13:52:34 (id: 1756068754141)
+
+Top 6 Contributing Features (Fault vs Normal):
+1. Stripper Pressure: Fault=3217.290 | Normal=3101.749 | Δ=115.541 (3.73%) | z=21.71
+2. Reactor Pressure: Fault=2807.282 | Normal=2704.357 | Δ=102.925 (3.81%) | z=17.26
+3. Product Sep Pressure: Fault=2734.616 | Normal=2633.026 | Δ=101.590 (3.86%) | z=16.33
+4. E Feed: Fault=4504.535 | Normal=4509.577 | Δ=-5.043 (-0.11%) | z=-0.13
+5. Stripper Steam Flow: Fault=252.553 | Normal=236.147 | Δ=16.406 (6.95%) | z=2.12
+6. Stripper Underflow: Fault=21.615 | Normal=22.962 | Δ=-1.348 (-5.87%) | z=-2.25

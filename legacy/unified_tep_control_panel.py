@@ -383,8 +383,12 @@ class TEPDataBridge:
             prerun_matrix = _np2.zeros((prerun_steps, 20), dtype=_np2.float64)  # No faults during pre-run
 
             # Convert IDV history to proper format (FLOAT, not INT!)
-            actual_matrix = _np2.array(list(self.idv_history), dtype=_np2.float64).reshape(-1, 20)
-            full_matrix = _np2.vstack([prerun_matrix, actual_matrix])
+            if len(self.idv_history) > 0:
+                actual_matrix = _np2.array(list(self.idv_history), dtype=_np2.float64).reshape(-1, 20)
+                full_matrix = _np2.vstack([prerun_matrix, actual_matrix])
+            else:
+                # If no history yet, just use prerun matrix
+                full_matrix = prerun_matrix
 
             print(f"🔄 Running REAL TEP simulation: {prerun_steps} pre-run + {current_step} actual steps (Speed: {self.speed_factor}x)")
             print(f"🎛️ Current XMV values: {self.xmv_values if hasattr(self, 'xmv_values') else 'Not set'}")
@@ -887,14 +891,51 @@ class TEPDataBridge:
             return False, f"Failed to start frontend: {e}"
 
     def stop_all_processes(self):
-        """Stop all running processes."""
+        """Stop all running processes comprehensively."""
+        print("🛑 EMERGENCY STOP: Stopping all TEP processes...")
+
+        # Stop TEP simulation first
+        self.tep_running = False
+        print("✅ TEP simulation stopped")
+
+        # Stop all tracked processes
         for name, process in self.processes.items():
             try:
+                print(f"🔪 Terminating {name} (PID: {process.pid})")
                 process.terminate()
-                print(f"🛑 Stopped {name}")
-            except:
-                pass
+                # Wait up to 3 seconds for graceful shutdown
+                try:
+                    process.wait(timeout=3)
+                    print(f"✅ {name} terminated gracefully")
+                except subprocess.TimeoutExpired:
+                    print(f"💀 Force killing {name}")
+                    process.kill()
+                    process.wait()
+            except Exception as e:
+                print(f"⚠️ Error stopping {name}: {e}")
+
         self.processes.clear()
+
+        # Kill processes by port (comprehensive cleanup)
+        ports_to_clean = [9001, 9002, 8001, 8000, 5173, 3000]
+        for port in ports_to_clean:
+            try:
+                if self.kill_port_process(port):
+                    print(f"🔪 Freed port {port}")
+            except Exception as e:
+                print(f"⚠️ Could not clean port {port}: {e}")
+
+        # Clean up data files
+        try:
+            data_file = "data/live_tep_data.csv"
+            if os.path.exists(data_file):
+                with open(data_file, 'w') as f:
+                    f.write("")  # Clear the file
+                print("🗑️ Cleared data file")
+        except Exception as e:
+            print(f"⚠️ Could not clear data file: {e}")
+
+        print("🎉 Emergency stop complete - all processes terminated")
 
     def check_process_status(self, process_name):
         """Check if a process is actually running."""
@@ -1526,6 +1567,52 @@ class UnifiedControlPanel:
             self.bridge.stop_tep_simulation()
             self.bridge.stop_all_processes()
             return jsonify({'success': True, 'message': 'All processes stopped'})
+
+        @self.app.route('/api/emergency/shutdown', methods=['POST'])
+        def emergency_shutdown():
+            """Emergency shutdown using external script for maximum safety."""
+            try:
+                import subprocess
+                import os
+
+                # Get the project root directory
+                project_root = os.path.dirname(os.path.abspath(__file__))
+                script_path = os.path.join(project_root, '..', 'stop_all_tep_services.sh')
+
+                if os.path.exists(script_path):
+                    # Run the comprehensive shutdown script
+                    result = subprocess.run(['bash', script_path],
+                                          capture_output=True, text=True, timeout=30)
+
+                    if result.returncode == 0:
+                        return jsonify({
+                            'success': True,
+                            'message': 'Emergency shutdown completed successfully',
+                            'output': result.stdout
+                        })
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'message': 'Emergency shutdown completed with warnings',
+                            'output': result.stdout,
+                            'error': result.stderr
+                        })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Emergency shutdown script not found'
+                    })
+
+            except subprocess.TimeoutExpired:
+                return jsonify({
+                    'success': False,
+                    'message': 'Emergency shutdown timed out'
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'Emergency shutdown failed: {str(e)}'
+                })
 
         # Model control proxy endpoints
         @self.app.route('/api/models/status', methods=['GET'])
